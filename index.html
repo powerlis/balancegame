@@ -94,7 +94,8 @@
   let room = { id:null, secret:null };
   let db = null;
   let firebaseReady = false;
-  let unsubRoom = null, unsubPlayers = null;
+  let unsubRoom = null, unsubPlayers = null, unsubAnswers = null;
+  let subscribedIndex = null;
 
   // 실시간 렌더 캐시
   let latestRoomData = null;
@@ -307,9 +308,27 @@
     const cur = roomDoc.currentIndex;
     curIndex = cur; // 이벤트 위임에서 사용
 
+    // 현재 문항 answers 실시간 구독(전원 응답 감지용)
+    if (cur >= 0 && cur < QUESTIONS.length) {
+      if (subscribedIndex !== cur) {
+        if (unsubAnswers) { unsubAnswers(); unsubAnswers = null; }
+        subscribedIndex = cur;
+        unsubAnswers = db.collection('rooms').doc(room.id)
+          .collection('answers')
+          .where('qIndex','==',cur)
+          .onSnapshot(() => {
+            // 응답이 변하면 즉시 리렌더(최신 players/roomDoc을 사용)
+            if (latestRoomData) renderGame(latestRoomData, latestPlayers);
+          });
+      }
+    } else {
+      if (unsubAnswers) { unsubAnswers(); unsubAnswers = null; }
+      subscribedIndex = null;
+    }
+
     const headerHTML = `
       <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div><span class="pill">방 코드</span> <b style="letter-spacing:1px">${room.id}</b></div>
+        <div><span class="pill">방 코드</span> <b style="letter-spacing:1px">${room.id||'-'}</b></div>
         <div><span class="pill">인원</span> ${players.length}명</div>
       </div>
     `;
@@ -431,15 +450,19 @@
     const myPick = picks.find(a=>a.playerId===me.id)?.type || null;
     const tallyNow = {A:0,B:0}; picks.forEach(a=>tallyNow[a.type]=(tallyNow[a.type]||0)+1);
 
-    // 모두 응답 여부
+    // 모두 응답 여부(각 참가자 id가 최소 1회 응답했는지)
     const answeredIds = new Set(picks.map(p => p.playerId));
-    const allAnswered = answeredIds.size >= players.length;
+    const allAnswered = players.every(p => answeredIds.has(p.id));
 
-    appEl.innerHTML = `
+    const headerHTML2 = `
       ${headerHTML}
       <div class="progress"><div class="bar" style="width:${Math.round((cur/QUESTIONS.length)*100)}%"></div></div>
       <div class="qnum">문항 ${cur+1} / ${QUESTIONS.length}</div>
       <h3 class="qtitle">${q.title}</h3>
+    `;
+
+    appEl.innerHTML = `
+      ${headerHTML2}
       <div class="grid">
         <section class="card pad">
           ${q.options.map(o=>`
@@ -495,6 +518,7 @@
 
       try {
         await pick(curIndex, btn.dataset.type);
+        // 답변 저장 후에는 answers onSnapshot이 알아서 재렌더를 호출합니다.
       } catch (err) {
         alert('선택 저장 실패: ' + (err?.message || err));
         console.error(err);
