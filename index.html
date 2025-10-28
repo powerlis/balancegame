@@ -3,79 +3,164 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>밸런스 독서 게임 – 실시간 멀티플레이</title>
+  <title>📚 밸런스 독서 게임 – 실시간 멀티플레이</title>
   <style>
-    :root{
-      --bg:#f8fafc; --card:#ffffff; --ink:#1f2937; --muted:#6b7280;
-      --brand:#3b82f6; --accent:#60a5fa; --ok:#16a34a; --warn:#eab308; --bad:#ef4444;
-      --radius:16px;
+    /* ====== 첨부 파일의 디스플레이 스타일 계승 ====== */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+
+    :root {
+      --main-color: #4a044e; /* Deep Purple */
+      --light-color: #f3e8ff; /* Light Purple */
+      --dark-color: #3b0764;  /* Darker Purple */
+      --bg-color: #fdfcff;    /* Off-white */
+      --text-dark: #1f2937;
+      --text-light: #6b7280;
+      --border-color: #e5e7eb;
+      --radius: 20px;
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;font-family:"Noto Sans KR",system-ui,-apple-system,Segoe UI,Roboto,Pretendard,Apple SD Gothic Neo,Malgun Gothic,Arial,sans-serif;
-      background:var(--bg);color:var(--ink)
+
+    *{ box-sizing:border-box }
+    html, body { height: 100% }
+    body {
+      font-family: 'Noto Sans KR', system-ui, -apple-system, Segoe UI, Roboto, Apple SD Gothic Neo, Malgun Gothic, Arial, sans-serif;
+      background-color: var(--bg-color);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
     }
-    .wrap{max-width:980px;margin:0 auto;padding:28px 18px 80px}
-    header{display:flex;align-items:center;gap:12px;margin:8px 0 18px}
-    .pill{font-size:12px;color:#052c65;background:linear-gradient(135deg,#a3e635,#86efac);padding:6px 12px;border-radius:999px;font-weight:800;letter-spacing:.2px}
-    h1{font-size:clamp(26px,5vw,40px);margin:.2rem 0 .2rem;line-height:1.15}
-    p.lead{color:var(--muted);margin:.2rem 0 1.2rem;font-size:15px}
 
-    .card{background:var(--card);border:1px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.06);border-radius:var(--radius)}
-    .card.pad{padding:22px}
-    .grid{display:grid;gap:18px}
-    @media(min-width:900px){.grid{grid-template-columns:1fr}} /* 진행 화면은 단일 컬럼 */
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    .col{flex:1;min-width:260px}
-    input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid #d1d5db;background:#fff;color:var(--ink)}
-    .muted{color:var(--muted)}
-
-    .btn{
-      appearance:none;border:0;border-radius:12px;padding:14px 18px;font-weight:800;
-      background:linear-gradient(135deg,var(--brand),var(--accent)); color:#fff;
-      cursor:pointer;box-shadow:0 6px 18px rgba(59,130,246,.25);
-      transition:transform .05s ease,filter .2s ease;
+    /* 전체 앱 컨테이너: 카드 느낌 유지 + 반응형 폭 확장 */
+    #app {
+      background-color: #fff;
+      width: 100%;
+      max-width: 920px;           /* 단일·멀티 레이아웃 모두 수용 */
+      border-radius: var(--radius);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      overflow: hidden;
     }
-    .btn:hover{filter:brightness(1.05)}
-    .btn:active{transform:translateY(1px)}
-    .btn.block{width:100%}
-    .btn.ghost{background:#fff;color:var(--ink);border:1px solid #d1d5db;box-shadow:none}
-    .btn[disabled]{opacity:.6;cursor:not-allowed}
-    .btn.selected{outline:3px solid var(--warn);filter:brightness(1.04)}
 
-    .notice{background:#f1f5f9;border:1px solid #e2e8f0;color:#334155;padding:10px;border-radius:12px;margin-top:12px}
-    .error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:10px;margin:10px 0;white-space:pre-wrap}
+    .pad { padding: 24px 22px }
+    .head { padding: 26px 22px 10px; text-align: center; }
+    .pill {
+      display:inline-block;
+      background-color: var(--light-color);
+      color: var(--main-color);
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+    h1 {
+      color: var(--dark-color);
+      font-size: clamp(22px, 4.6vw, 32px);
+      margin: 10px 0 6px;
+    }
+    p.lead {
+      color: var(--text-light);
+      margin: 0 0 8px;
+      line-height: 1.6;
+    }
 
-    .qnum{display:inline-block;font-weight:900;color:#052c65;background:linear-gradient(135deg,#dbeafe,#bfdbfe);padding:6px 10px;border-radius:999px;font-size:12px;margin-bottom:12px}
-    .qtitle{font-size:20px;font-weight:900;margin:0 0 12px}
-    .progress{height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin-bottom:10px}
-    .bar{height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--accent));transition:width .25s ease}
-    .table{width:100%;border-collapse:collapse}
-    .table th,.table td{border:1px solid #e5e7eb;padding:8px 10px;text-align:center}
-    .table th{background:#f8fafc}
-    .tag{border:1px solid #d1d5db;padding:6px 10px;border-radius:999px;background:#f3f4f6;display:inline-block;margin:4px 6px 0 0}
+    /* 입력/폼 */
+    .row{ display:flex; gap:12px; flex-wrap: wrap }
+    .col{ flex:1; min-width:260px }
+    input[type="text"]{
+      width:100%;
+      padding:14px 14px;
+      border-radius: 14px;
+      border:2px solid var(--border-color);
+      background:#fff;
+      color:var(--text-dark);
+      font-size: 1rem;
+    }
+    input[type="text"]:focus{
+      outline:none; border-color: var(--main-color);
+      box-shadow: 0 0 0 3px rgba(74,4,78,0.12);
+    }
+
+    /* 버튼 (첨부 스타일 유지) */
+    .btn {
+      display:block;
+      width:100%;
+      padding:16px;
+      margin-top: 10px;
+      border:2px solid var(--main-color);
+      border-radius: 15px;
+      background-color: var(--main-color);
+      color:#fff;
+      font-size:1.1rem;
+      font-weight:700;
+      cursor:pointer;
+      transition: all .2s ease;
+    }
+    .btn:hover { background-color: var(--dark-color); border-color: var(--dark-color); transform: translateY(-2px); }
+    .btn[disabled]{ opacity:.6; cursor:not-allowed; transform:none }
+
+    /* 옵션 버튼은 흰 배경 + 보라 텍스트(첨부 answer-btn 스타일) */
+    .opt {
+      background:#fff;
+      color:var(--main-color);
+      border:2px solid var(--main-color);
+      text-align:center;
+      padding:16px;
+      border-radius: 15px;
+      font-weight:700;
+      margin-bottom:12px;
+      width:100%;
+      cursor:pointer;
+      transition: all .15s ease;
+    }
+    .opt:hover { background: var(--light-color); color: var(--dark-color); border-color: var(--dark-color); }
+    .opt.selected { outline: 3px solid var(--light-color); }
+
+    /* 카드 */
+    .card { border-top: 1px solid var(--border-color); }
+
+    /* 진행 막대 */
+    .progress {
+      width: 100%; height: 10px; background: var(--border-color); border-radius: 5px; overflow: hidden; margin-bottom: 16px;
+    }
+    .progress .bar {
+      width:0%; height:100%; background: var(--main-color); transition: width .35s ease;
+    }
+
+    /* 텍스트 */
+    .muted { color: var(--text-light) }
+    .tag {
+      display:inline-block;
+      border:1px solid var(--border-color);
+      padding:6px 10px;
+      border-radius:999px;
+      background:#f9fafb;
+      margin:4px 6px 0 0;
+      font-size: .95rem;
+    }
+
+    /* 표 (결과용) */
+    table { width:100%; border-collapse: collapse }
+    th, td { border:1px solid var(--border-color); padding:8px 10px; text-align: center }
+    th { background:#f8fafc }
+
+    /* 배너/경고 */
+    .banner { width:100%; max-width:920px; margin: 10px auto 0; }
+    .error {
+      background:#fef2f2; border:1px solid #fecaca; color:#991b1b;
+      padding:10px 12px; border-radius: 12px; margin-bottom: 12px; white-space: pre-wrap;
+    }
+
+    /* 페이지 전환 애니메이션 느낌 */
+    .fadeIn { animation: fadeIn .35s ease }
+    @keyframes fadeIn { from{opacity:0; transform: translateY(8px)} to{opacity:1; transform:none} }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <span class="pill">휴대폰 참여 · 실시간</span>
-      <div>
-        <h1>밸런스 독서 게임 – 온라인 동시 참가</h1>
-        <p class="lead">호스트가 방을 만들고, 참가자는 방 코드를 입력해 각자 휴대폰으로 참여합니다.</p>
-      </div>
-    </header>
+  <div class="banner" id="banner"></div>
 
-    <div id="banner"></div>
-
-    <main id="app" class="card pad" aria-live="polite">
-      <!-- 첫 화면은 JS로 렌더 -->
-    </main>
-
-    <footer class="muted" style="margin-top:10px;font-size:12px">
-      Powered by Firebase Firestore (client-only demo). 실제 운영 시 인증·규칙을 강화하세요.
-    </footer>
+  <div id="app" class="fadeIn">
+    <!-- JS 렌더 -->
   </div>
 
   <!-- Firebase SDK (CDN/compat) -->
@@ -83,7 +168,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
 
   <script>
-  // =============== 공통 상태/유틸 ===============
+  /* ======================= 상태/유틸 ======================= */
   const appEl = document.getElementById('app');
   const banner = document.getElementById('banner');
   const $ = (s,c=document)=>c.querySelector(s);
@@ -92,17 +177,16 @@
 
   let me = { id:null, name:'', role:'player' };
   let room = { id:null, secret:null };
-  let db = null;
-  let firebaseReady = false;
+  let db = null, firebaseReady = false;
+
   let unsubRoom = null, unsubPlayers = null, unsubAnswers = null;
   let subscribedIndex = null;
 
-  // 실시간 렌더 캐시
   let latestRoomData = null;
   let latestPlayers = [];
-  let curIndex = 0; // 현재 문항 인덱스(이벤트 위임에서 사용)
+  let curIndex = 0;
 
-  // =============== 질문 ===============
+  /* ======================= 질문(2선택 밸런스 10문항) ======================= */
   const QUESTIONS = [
     { id:'Q1', title:'책갈피가 없을 때?', options:[
       { text:'a. 책 모서리 접으면 간단하지', type:'A' },
@@ -146,56 +230,53 @@
     ]}
   ];
 
-  // =============== 시작 화면 ===============
+  /* ======================= 시작 화면 ======================= */
   function renderStart(){
     appEl.innerHTML = `
-      <div class="grid">
-        <section class="card pad">
-          <div class="pill">역할 선택</div>
-          <h2 style="margin:.4rem 0 0">호스트로 방 만들기 / 참가자로 입장</h2>
-          <div class="row" style="margin-top:12px">
-            <div class="col">
-              <input id="hostName" type="text" placeholder="호스트 이름(예: 교사/사회자)" />
-              <button class="btn block" id="mkroom" style="margin-top:8px">방 만들기</button>
-            </div>
-            <div class="col">
-              <input id="code" type="text" placeholder="방 코드(예: ABC123)" />
-              <input id="name" type="text" placeholder="내 이름(참가자)" style="margin-top:8px" />
-              <button class="btn block" id="join" style="margin-top:8px">참가자로 입장</button>
-            </div>
+      <div class="head">
+        <span class="pill">휴대폰 참여 · 실시간</span>
+        <h1>밸런스 독서 게임</h1>
+        <p class="lead">호스트는 방을 만들고, 참가자는 방 코드로 입장합니다.</p>
+      </div>
+      <div class="pad card">
+        <div class="row">
+          <div class="col">
+            <label class="muted" for="hostName">호스트 이름</label>
+            <input id="hostName" type="text" placeholder="예: 사회자/교사" />
+            <button class="btn" id="mkroom">방 만들기</button>
           </div>
-          <div class="notice">Firestore 준비 상태: <b>${firebaseReady?'정상 연결':'미연결(콘솔 설정·규칙 확인)'}</b></div>
-        </section>
-        <aside class="card pad">
-          <div class="pill">TIP</div>
-          <p class="muted">참가자는 휴대폰에서 이 페이지 링크를 열고, <b>방 코드</b>와 <b>자기 이름</b>만 입력하면 됩니다.</p>
-        </aside>
+          <div class="col">
+            <label class="muted" for="code">방 코드 & 참가자 이름</label>
+            <input id="code" type="text" placeholder="방 코드(예: ABC123)" />
+            <input id="name" type="text" placeholder="내 이름(참가자)" style="margin-top:10px" />
+            <button class="btn" id="join">참가자로 입장</button>
+          </div>
+        </div>
+        <p class="muted" style="margin:14px 4px 0">Firestore 상태: <b>${firebaseReady?'연결됨':'미연결(콘솔/규칙 확인)'}</b></p>
       </div>
     `;
 
     $('#mkroom').addEventListener('click', async ()=>{
-      if(!firebaseReady) return warn('Firebase가 연결되지 않았습니다. 콘솔 설정과 Firestore 규칙을 확인하세요.');
-      const name = $('#hostName').value.trim()||'Host';
-      try { await createRoom(name); }
-      catch(e){ alert('방 만들기 실패: ' + (e?.message||e)); console.error(e); }
+      if(!firebaseReady) return showErr('Firebase가 아직 연결되지 않았어요. 프로젝트/규칙을 확인해 주세요.');
+      const name = $('#hostName').value.trim() || 'Host';
+      try { await createRoom(name); } catch(e){ showErr('방 만들기 실패: '+(e?.message||e)); }
     });
 
     $('#join').addEventListener('click', async ()=>{
-      if(!firebaseReady) return warn('Firebase가 연결되지 않았습니다. 콘솔 설정과 Firestore 규칙을 확인하세요.');
+      if(!firebaseReady) return showErr('Firebase가 아직 연결되지 않았어요. 프로젝트/규칙을 확인해 주세요.');
       const code = $('#code').value.trim().toUpperCase();
-      const name = $('#name').value.trim()||'참가자';
-      if(!code) return alert('방 코드를 입력해 주세요.');
-      try { await joinRoom(code, name); }
-      catch(e){ alert('입장 실패: ' + (e?.message||e)); console.error(e); }
+      const name = $('#name').value.trim() || '참가자';
+      if(!code) return showErr('방 코드를 입력해 주세요.');
+      try { await joinRoom(code, name); } catch(e){ showErr('입장 실패: '+(e?.message||e)); }
     });
   }
 
-  function warn(msg){
+  function showErr(msg){
     banner.innerHTML = `<div class="error">⚠️ ${msg}</div>`;
     console.error(msg);
   }
 
-  // =============== Firebase 연결 ===============
+  /* ======================= Firebase 연결 ======================= */
   (function connectFirebase(){
     try{
       const cfg = {
@@ -208,23 +289,24 @@
         measurementId: "G-GEWHJK9SP3"
       };
       if(!(window.firebase && firebase.initializeApp)){
-        warn("Firebase SDK가 로드되지 않았습니다. (CDN 차단/네트워크 문제 가능)");
+        showErr("Firebase SDK가 로드되지 않았습니다. (네트워크/CSP 차단 가능)");
         renderStart(); return;
       }
       firebase.initializeApp(cfg);
       db = firebase.firestore();
       firebaseReady = true;
-      // 권한 간이 체크
+
+      // 접근 확인용(권한 없으면 에러 노출)
       db.collection("_ping").limit(1).get()
         .then(()=>renderStart())
-        .catch(e=>{ warn("Firestore 접근 실패: 규칙 또는 프로젝트 설정을 확인하세요.\n"+(e?.message||e)); renderStart(); });
+        .catch(e=>{ showErr("Firestore 접근 실패: 콘솔 규칙을 Publish 했는지 확인해 주세요.\n"+(e?.message||e)); renderStart(); });
     }catch(e){
-      warn("Firebase 초기화 오류: " + (e?.message||e));
+      showErr("Firebase 초기화 오류: "+(e?.message||e));
       renderStart();
     }
   })();
 
-  // =============== Firestore 동작 함수 ===============
+  /* ======================= Firestore I/O ======================= */
   async function createRoom(hostName){
     const id = code6();
     const secret = Math.random().toString(36).slice(2,10);
@@ -236,7 +318,7 @@
       secret,
     });
     room.id = id; room.secret = secret;
-    me = { id: uid(), name: hostName||'Host', role:'host' };
+    me = { id: uid(), name: hostName, role:'host' };
     await db.collection('rooms').doc(id).collection('players').doc(me.id).set({
       name: me.name, role:'host',
       joinedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -247,9 +329,9 @@
 
   async function joinRoom(code, name){
     const snap = await db.collection('rooms').doc(code).get();
-    if(!snap.exists){ alert('존재하지 않는 방 코드입니다.'); return; }
+    if(!snap.exists){ showErr('존재하지 않는 방 코드입니다.'); return; }
     room.id = code; room.secret = snap.data().secret || null;
-    me = { id: uid(), name: name||'참가자', role:'player' };
+    me = { id: uid(), name, role:'player' };
     await db.collection('rooms').doc(code).collection('players').doc(me.id).set({
       name: me.name, role:'player',
       joinedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -258,21 +340,19 @@
   }
 
   function listenRoom(){
-    // rooms/{roomId} 문서 실시간
     if (unsubRoom) unsubRoom();
-    unsubRoom = db.collection('rooms').doc(room.id).onSnapshot(doc => {
-      if (!doc.exists) { warn('방이 종료되었습니다.'); renderStart(); return; }
+    unsubRoom = db.collection('rooms').doc(room.id).onSnapshot(doc=>{
+      if(!doc.exists){ showErr('방이 종료되었습니다.'); renderStart(); return; }
       latestRoomData = doc.data();
       renderGame(latestRoomData, latestPlayers);
     });
 
-    // rooms/{roomId}/players 실시간
     if (unsubPlayers) unsubPlayers();
-    unsubPlayers = db.collection('rooms').doc(room.id)
-      .collection('players').orderBy('joinedAt','asc')
-      .onSnapshot(snap => {
-        latestPlayers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (latestRoomData) renderGame(latestRoomData, latestPlayers);
+    unsubPlayers = db.collection('rooms').doc(room.id).collection('players')
+      .orderBy('joinedAt','asc')
+      .onSnapshot(snap=>{
+        latestPlayers = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+        if(latestRoomData) renderGame(latestRoomData, latestPlayers);
       });
   }
 
@@ -280,17 +360,19 @@
     const qs = await db.collection('rooms').doc(room.id).collection('answers').where('qIndex','==',index).get();
     return qs.docs.map(d=>d.data());
   }
-  async function startGame(){ await db.collection('rooms').doc(room.id).update({ started:true, currentIndex:0 }); }
 
-  // 트랜잭션으로 안전 진행(중복 증가 방지)
+  async function startGame(){
+    await db.collection('rooms').doc(room.id).update({ started:true, currentIndex:0 });
+  }
+
   async function nextQuestionSafe(cur){
     const ref = db.collection('rooms').doc(room.id);
-    await db.runTransaction(async tx => {
+    await db.runTransaction(async tx=>{
       const snap = await tx.get(ref);
       if(!snap.exists) throw new Error('room not found');
       const now = snap.data().currentIndex ?? -1;
-      if(now === cur){
-        tx.update(ref, { currentIndex: Math.min(cur + 1, QUESTIONS.length) });
+      if(now===cur){
+        tx.update(ref, { currentIndex: Math.min(cur+1, QUESTIONS.length) });
       }
     });
   }
@@ -303,50 +385,44 @@
     }, { merge:true });
   }
 
-  // =============== 게임 화면 ===============
+  /* ======================= 화면 렌더 ======================= */
   async function renderGame(roomDoc, players){
     const cur = roomDoc.currentIndex;
-    curIndex = cur; // 이벤트 위임에서 사용
+    curIndex = cur;
 
-    // 현재 문항 answers 실시간 구독(전원 응답 감지용)
+    // 현재 문항 answers 실시간 구독(전원 응답 감지)
     if (cur >= 0 && cur < QUESTIONS.length) {
       if (subscribedIndex !== cur) {
         if (unsubAnswers) { unsubAnswers(); unsubAnswers = null; }
         subscribedIndex = cur;
         unsubAnswers = db.collection('rooms').doc(room.id)
-          .collection('answers')
-          .where('qIndex','==',cur)
-          .onSnapshot(() => {
-            if (latestRoomData) renderGame(latestRoomData, latestPlayers);
-          });
+          .collection('answers').where('qIndex','==',cur)
+          .onSnapshot(()=>{ if(latestRoomData) renderGame(latestRoomData, latestPlayers); });
       }
     } else {
       if (unsubAnswers) { unsubAnswers(); unsubAnswers = null; }
       subscribedIndex = null;
     }
 
-    const headerHTML = `
-      <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div><span class="pill">방 코드</span> <b style="letter-spacing:1px">${room.id||'-'}</b></div>
-        <div><span class="pill">인원</span> ${players.length}명</div>
+    const head = `
+      <div class="head">
+        <span class="pill">방 코드 ${room.id||'-'}</span>
+        <h1>밸런스 독서 게임</h1>
+        <p class="lead">${players.length}명 참여 중</p>
       </div>
     `;
 
     // 대기실
     if(cur < 0 || !roomDoc.started){
       appEl.innerHTML = `
-        ${headerHTML}
-        <div class="grid">
-          <section class="card pad">
-            <div class="pill">대기실</div>
-            <h2 style="margin:.4rem 0 0">참가자를 기다리는 중…</h2>
-            <p class="muted">링크를 공유하고 방 코드를 알려 주세요.</p>
-            <div class="card pad" style="margin-top:10px">
-              <h3 style="margin:.2rem 0 .6rem">참가자 목록</h3>
-              <div>${players.map(p=>`<span class="tag">${p.name}${p.role==='host'?' (호스트)':''}</span>`).join(' ')||'<span class="muted">아직 없음</span>'}</div>
-            </div>
-            ${me.role==='host'?'<button type="button" class="btn" id="start">게임 시작</button>':''}
-          </section>
+        ${head}
+        <div class="pad card">
+          <h3 style="margin:0 0 6px">대기실</h3>
+          <p class="muted">링크를 공유하고 <b>방 코드</b>로 입장하세요.</p>
+          <div style="margin:10px 0 6px">
+            ${players.length ? players.map(p=>`<span class="tag">${p.name}${p.role==='host'?' (호스트)':''}</span>`).join(' ') : '<span class="muted">아직 참가자 없음</span>'}
+          </div>
+          ${me.role==='host' ? '<button class="btn" id="start">게임 시작</button>' : ''}
         </div>
       `;
       if(me.role==='host') $('#start').addEventListener('click', startGame);
@@ -355,81 +431,75 @@
 
     // 결과 화면
     if(cur >= QUESTIONS.length){
-      const allAnswers = await db.collection('rooms').doc(room.id).collection('answers').get();
-      const answers = allAnswers.docs.map(d=>d.data());
+      const allAnsSnap = await db.collection('rooms').doc(room.id).collection('answers').get();
+      const answers = allAnsSnap.docs.map(d=>d.data());
       const qCount = QUESTIONS.length;
 
-      // 두 플레이어 간 일치 수/항목 계산
-      function pairMatches(aId,bId){
+      // 두 참가자 간 매칭된 문제 목록
+      function pairMatches(aId, bId){
         const list=[];
         for(let i=0;i<qCount;i++){
           const Pa = answers.find(x=>x.playerId===aId && x.qIndex===i);
           const Pb = answers.find(x=>x.playerId===bId && x.qIndex===i);
           if(Pa && Pb && Pa.type===Pb.type){
-            const optType = Pa.type; // 'A' or 'B'
-            const opt = QUESTIONS[i].options.find(o=>o.type===optType);
-            list.push({
-              index:i,
-              title:QUESTIONS[i].title,
-              type:optType,
-              text:opt ? opt.text : (optType==='A'?'a.':'b.')
-            });
+            const optType = Pa.type;
+            const optText = QUESTIONS[i].options.find(o=>o.type===optType)?.text || (optType==='A'?'a.':'b.');
+            list.push({ index:i, title: QUESTIONS[i].title, type: optType, text: optText });
           }
         }
         return list;
       }
-      function matchMessage(m){
-        if(m<=2) return { title:'책은 같이 읽지만... 마음은 평행선 💫', desc:'너희는 완전 정반대 독서 짝꿍! 한 명은 책 모서리 접고, 한 명은 접는 사람 보면 기절하는 타입. 하지만 이런 조합이 제일 재밌지! 매번 토론 아닌 토크쇼 개장!' };
-        if(m<=5) return { title:'다르지만 묘하게 통하는 독서 친구 📖', desc:'둘 다 책은 좋아하지만 접근 방식이 달아요. 한 명은 ‘책은 신성한 존재’, 다른 한 명은 ‘책은 생활 속 친구’. 그래도 서로의 취향을 존중하는 이상적인 독서 듀오!' };
-        if(m<=8) return { title:'같이 책 고르고 같이 힐링하는 찐독서메이트 🌿', desc:'책 고를 때, 읽을 때, 심지어 책 읽는 자세까지 비슷해요. 도서관 가면 둘 다 같은 코너에서 마주칠 확률 98%!' };
-        return { title:'독서 소울메이트 발견! 💞', desc:'이 정도면 거의 책 속에서도 만나야 할 운명이야. 둘 다 책 넘기는 타이밍도, 책에 손 베이는 손가락 마디도 똑같을 듯!' };
+      function matchMessage(n){
+        if(n<=2) return { title:'책은 같이 읽지만... 마음은 평행선 💫', desc:'완전 반대 취향이지만 그래서 더 재밌어요! 대화할 거리 가득한 조합.' };
+        if(n<=5) return { title:'다르지만 묘하게 통하는 독서 친구 📖', desc:'관점은 달라도 서로 존중하는 이상적인 듀오.' };
+        if(n<=8) return { title:'같이 힐링하는 찐독서메이트 🌿', desc:'읽는 습관/취향이 비슷! 서가에서도 자주 마주치는 타입.' };
+        return { title:'독서 소울메이트 발견! 💞', desc:'책 속에서도 만날 운명! 취향 싱크가 완벽합니다.' };
       }
 
+      // 전체 매칭 표
       const playersNow = players;
-
-      // 결과 표(겹침 수/비율)
-      let table = '<table class="table"><thead><tr><th>상대</th>';
-      playersNow.forEach(p=>table+=`<th>${p.name}</th>`);
+      let table = '<table><thead><tr><th>상대</th>';
+      playersNow.forEach(p=> table += `<th>${p.name}</th>`);
       table += '</tr></thead><tbody>';
       playersNow.forEach(r=>{
         table += `<tr><th>${r.name}</th>`;
         playersNow.forEach(c=>{
-          if(r.id===c.id) table+='<td>—</td>';
+          if(r.id===c.id) table += '<td>—</td>';
           else {
-            const mlist = pairMatches(r.id,c.id);
-            const s = mlist.length;
-            const rate=Math.round((s/qCount)*100);
-            table+=`<td>${s}/${qCount} (${rate}%)</td>`;
+            const s = pairMatches(r.id,c.id).length;
+            const rate = Math.round((s/qCount)*100);
+            table += `<td>${s}/${qCount} (${rate}%)</td>`;
           }
         });
         table += '</tr>';
       });
       table += '</tbody></table>';
 
-      // 페어 카드 + "매칭된 문제 목록"
+      // 페어 카드(매칭된 문제 + A/B 보기까지)
       let pairCards = '';
       if(playersNow.length>=2){
         for(let i=0;i<playersNow.length;i++){
           for(let j=i+1;j<playersNow.length;j++){
-            const a=playersNow[i], b=playersNow[j];
-            const mlist = pairMatches(a.id,b.id);
-            const msg = matchMessage(mlist.length);
-            const listHTML = mlist.length
+            const A = playersNow[i], B = playersNow[j];
+            const matches = pairMatches(A.id,B.id);
+            const msg = matchMessage(matches.length);
+            const listHTML = matches.length
               ? `<ol style="margin:.4rem 0 0 1.2rem;padding:0">
-                  ${mlist.map(x=>`<li style="margin:.2rem 0">
-                    <b>Q${x.index+1}.</b> ${x.title}<br>
-                    <span class="tag">공통 선택: ${x.type}</span> <span class="tag">${x.text}</span>
-                  </li>`).join('')}
+                    ${matches.map(x=>`
+                      <li style="margin:.2rem 0">
+                        <b>Q${x.index+1}.</b> ${x.title}<br/>
+                        <span class="tag">공통 선택: ${x.type}</span>
+                        <span class="tag">${x.text}</span>
+                      </li>`).join('')}
                  </ol>`
               : `<p class="muted" style="margin:.4rem 0 0">매칭된 문제가 없습니다.</p>`;
-
             pairCards += `
-              <div class="card pad" style="margin-bottom:10px">
-                <div class="pill" style="background:#eef2ff;color:#1e3a8a">${a.name} × ${b.name}</div>
-                <h3 style="margin:.4rem 0 0">일치 ${mlist.length}/${qCount}</h3>
+              <div class="pad card" style="margin-top:12px; border-radius:${'calc(var(--radius) - 6px)'}">
+                <span class="pill">${A.name} × ${B.name}</span>
+                <h3 style="margin:.6rem 0 0">일치 ${matches.length}/${qCount}</h3>
                 <p class="muted" style="margin:.2rem 0 .4rem">${msg.title}</p>
                 <p>${msg.desc}</p>
-                <div class="card pad" style="margin-top:8px;background:#fafafa">
+                <div class="pad" style="background:#f9fafb; border:1px solid var(--border-color); border-radius:14px; margin-top:8px">
                   <h4 style="margin:.2rem 0 .4rem">매칭된 문제 목록</h4>
                   ${listHTML}
                 </div>
@@ -440,62 +510,49 @@
       }
 
       appEl.innerHTML = `
-        ${headerHTML}
-        <div class="grid">
-          <section class="card pad">
-            <div class="pill">게임 종료</div>
-            <h2 style="margin:.4rem 0 0">우리의 결과</h2>
-            <div class="card pad" style="margin-top:10px">
-              <h3 style="margin:.2rem 0 .6rem">취향 겹침(같은 타입 선택 비율)</h3>
-              ${table}
-            </div>
-            ${pairCards ? `<div class="card pad" style="margin-top:10px"><h3 style="margin:.2rem 0 .6rem">페어 매칭 상세</h3>${pairCards}</div>`:''}
-            <div class="row" style="margin-top:12px">
-              <button type="button" class="btn" id="restart">다시 하기(새 방)</button>
-            </div>
-          </section>
+        ${head}
+        <div class="pad card">
+          <h3 style="margin:0 0 10px">취향 겹침(같은 타입 선택 비율)</h3>
+          ${table}
+          ${pairCards ? `<div class="pad card" style="margin-top:14px"><h3 style="margin:0 0 8px">페어 매칭 상세</h3>${pairCards}</div>`:''}
+          <button class="btn" id="restart" style="margin-top:14px">다시 하기(새 방)</button>
         </div>
       `;
-      $('#restart').addEventListener('click',()=>location.reload());
+      $('#restart').addEventListener('click', ()=>location.reload());
       return;
     }
 
-    // 진행 화면(실시간 집계/사이드바 제거)
+    // 진행 화면 (실시간 집계/사이드 제거)
     const q = QUESTIONS[cur];
     const picks = await answersFor(cur);
     const myPick = picks.find(a=>a.playerId===me.id)?.type || null;
 
-    // 모두 응답 여부(각 참가자 id가 최소 1회 응답했는지)
-    const answeredIds = new Set(picks.map(p => p.playerId));
-    const allAnswered = players.every(p => answeredIds.has(p.id));
-
-    const headerHTML2 = `
-      ${headerHTML}
-      <div class="progress"><div class="bar" style="width:${Math.round((cur/QUESTIONS.length)*100)}%"></div></div>
-      <div class="qnum">문항 ${cur+1} / ${QUESTIONS.length}</div>
-      <h3 class="qtitle">${q.title}</h3>
-    `;
+    // 전원 응답 확인
+    const answeredIds = new Set(picks.map(p=>p.playerId));
+    const allAnswered = players.every(p=>answeredIds.has(p.id));
 
     appEl.innerHTML = `
-      ${headerHTML2}
-      <section class="card pad">
+      ${head}
+      <div class="pad card">
+        <div class="progress"><div class="bar" style="width:${Math.round((cur/QUESTIONS.length)*100)}%"></div></div>
+        <div class="muted" style="margin-bottom:6px">문항 ${cur+1} / ${QUESTIONS.length}</div>
+        <h2 style="color:var(--text-dark); font-size:1.35rem; margin: 0 0 14px">${q.title}</h2>
+
         ${q.options.map(o=>`
-          <button type="button" class="btn block opt ${myPick===o.type?'selected':''}" data-type="${o.type}">
+          <button type="button" class="opt ${myPick===o.type?'selected':''}" data-type="${o.type}">
             ${o.text}
           </button>
         `).join('')}
-        <div class="notice" style="margin-top:10px">
-          선택을 완료하면 호스트가 다음 문항으로 진행합니다.
-        </div>
-        <div class="row" style="margin-top:14px;justify-content:flex-end;gap:8px">
-          ${ me.role==='host'
-              ? `<button type="button" class="btn" id="nextHost" ${!allAnswered?'disabled title="모두 응답해야 진행 가능"':''}>다음(호스트)</button>`
-              : '' }
-        </div>
-      </section>
+
+        <p class="muted" style="margin:10px 0 0">선택을 완료하면 호스트가 다음 문항으로 진행합니다.</p>
+
+        ${ me.role==='host'
+            ? `<button class="btn" id="nextHost" ${!allAnswered?'disabled title="모두 응답해야 진행 가능"':''} style="margin-top:12px">다음(호스트)</button>`
+            : '' }
+      </div>
     `;
 
-    // 호스트만 수동 진행 버튼(전원 응답 시에만 작동)
+    // 호스트만 진행 버튼
     const btnHost = $('#nextHost');
     if(btnHost){
       btnHost.addEventListener('click', ()=>{
@@ -504,41 +561,37 @@
     }
   }
 
-  // ====== 이벤트 위임: 동적 옵션 버튼도 항상 클릭 보장 ======
-  if (!window.__optDelegated) {
-    appEl.addEventListener('click', async (e) => {
+  // 옵션 버튼(동적) — 이벤트 위임
+  if(!window.__optDelegated){
+    appEl.addEventListener('click', async (e)=>{
       const btn = e.target.closest('.opt');
-      if (!btn) return;
+      if(!btn) return;
 
-      // 시각적 선택 표시
-      appEl.querySelectorAll('.opt').forEach(b => b.classList.remove('selected'));
+      // 표시
+      appEl.querySelectorAll('.opt').forEach(b=>b.classList.remove('selected'));
       btn.classList.add('selected');
 
-      if (!firebaseReady || !db) {
-        alert(`(테스트) "${btn.textContent}" 선택됨`);
-        return;
-      }
+      if(!firebaseReady || !db) { alert(`(테스트) ${btn.textContent} 선택`); return; }
 
-      try {
+      try{
         await pick(curIndex, btn.dataset.type);
-        // 답변 저장 후에는 answers onSnapshot이 알아서 재렌더를 호출합니다.
-      } catch (err) {
-        alert('선택 저장 실패: ' + (err?.message || err));
-        console.error(err);
+        // onSnapshot으로 자동 리렌더
+      }catch(err){
+        showErr('선택 저장 실패: ' + (err?.message||err));
       }
     });
     window.__optDelegated = true;
   }
 
-  // 첫 렌더(연결 전에도 화면 나옴)
+  // 초기 렌더
   renderStart();
 
-  // 전역 에러 배너
-  window.addEventListener('error', e=>{ warn("스크립트 오류: " + (e?.message||e)); });
+  // 전역 에러
+  window.addEventListener('error', e=>{ showErr("스크립트 오류: " + (e?.message||e)); });
   </script>
 
-  <!-- ▼ Firestore 규칙(테스트용 샘플) – 콘솔 > Firestore Database > Rules에 설정 후 Publish
-  // 데모/테스트에서만 사용하세요. 운영 시에는 인증/제한을 반드시 거세요.
+  <!-- ▼ Firestore 규칙(테스트용 예시) – 콘솔 > Firestore Database > Rules에서 Publish
+  // 데모/테스트에서만 사용하세요. 운영 전에는 인증/제한을 반드시 적용하세요.
   rules_version = '2';
   service cloud.firestore {
     match /databases/{database}/documents {
