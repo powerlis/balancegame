@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>밸런스 독서 게임 – 실시간 멀티플레이 (개선본)</title>
+  <title>밸런스 독서 게임 – 실시간 멀티플레이</title>
   <style>
     :root{
       --bg:#0f1117; --card:#171923; --ink:#e9edf6; --muted:#a7b0c2;
@@ -34,10 +34,10 @@
     input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:var(--ink)}
     .muted{color:var(--muted)}
 
-    /* 버튼 가독성/선택 강조 개선 */
+    /* 버튼 가독성/선택 강조 */
     .btn{
       appearance:none;border:0;border-radius:14px;padding:14px 18px;font-weight:800;
-      background:linear-gradient(135deg,#4a90e2,#6cc4ff); color:#fff; /* 흰 글씨 */
+      background:linear-gradient(135deg,#4a90e2,#6cc4ff); color:#fff;
       cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.30);
       transition:transform .05s ease,filter .2s ease,outline-color .2s ease;
     }
@@ -46,6 +46,7 @@
     .btn.block{width:100%}
     .btn.ghost{background:transparent;color:var(--ink);border:1px solid rgba(255,255,255,.18);box-shadow:none}
     .btn.selected{outline:3px solid #ffcc00;filter:brightness(1.2)}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
 
     .notice{background:rgba(255,255,255,.08);padding:10px;border-radius:12px;margin-top:12px}
     .error{background:#2b0000;border:1px solid #ff8a8a;color:#ffdede;padding:10px;border-radius:10px;margin:10px 0;white-space:pre-wrap}
@@ -98,6 +99,11 @@
   let db = null;
   let firebaseReady = false;
   let unsubRoom = null, unsubPlayers = null;
+
+  // 실시간 렌더를 위해 캐시
+  let latestRoomData = null;
+  let latestPlayers = [];
+  let curIndex = 0; // 현재 문항 인덱스(이벤트 위임에서 사용)
 
   const QUESTIONS = [
     { id:'Q1', title:'책갈피가 없을 때?', options:[
@@ -169,7 +175,7 @@
       </div>
     `;
 
-    // 안전한 핸들러(에러 알림 추가)
+    // 안전한 핸들러(에러 알림 포함)
     $('#mkroom').addEventListener('click', async ()=>{
       if(!firebaseReady) return warn('Firebase가 연결되지 않았습니다. 콘솔 설정과 Firestore 규칙을 확인하세요.');
       const name = $('#hostName').value.trim()||'Host';
@@ -199,7 +205,7 @@
         apiKey: "AIzaSyApSfouaSStrJ7YKjjU-V3YByqO0cd_AIc",
         authDomain: "balancegame-43c9b.firebaseapp.com",
         projectId: "balancegame-43c9b",
-        storageBucket: "balancegame-43c9b.appspot.com", /* storage는 안 써도 무방 */
+        storageBucket: "balancegame-43c9b.appspot.com",
         messagingSenderId: "334047765801",
         appId: "1:334047765801:web:50a37aa30ed5b0f06bc338",
         measurementId: "G-GEWHJK9SP3"
@@ -208,7 +214,7 @@
         warn("Firebase SDK가 로드되지 않았습니다. (CDN 차단/네트워크 문제 가능)");
         renderStart(); return;
       }
-      const appFB = firebase.initializeApp(cfg);
+      firebase.initializeApp(cfg);
       db = firebase.firestore();
       firebaseReady = true;
       // 읽기 테스트(권한 확인)
@@ -255,29 +261,43 @@
   }
 
   function listenRoom(){
-    if(unsubRoom) unsubRoom();
-    unsubRoom = db.collection('rooms').doc(room.id).onSnapshot(doc=>{
-      if(!doc.exists){ warn('방이 종료되었습니다.'); renderStart(); return; }
-      renderGame(doc.data());
+    // rooms/{roomId} 문서 실시간
+    if (unsubRoom) unsubRoom();
+    unsubRoom = db.collection('rooms').doc(room.id).onSnapshot(doc => {
+      if (!doc.exists) { warn('방이 종료되었습니다.'); renderStart(); return; }
+      latestRoomData = doc.data();
+      renderGame(latestRoomData, latestPlayers);
     });
-    if(unsubPlayers) unsubPlayers();
-    unsubPlayers = db.collection('rooms').doc(room.id).collection('players').orderBy('joinedAt','asc')
-      .onSnapshot(()=>{/* renderGame 내부에서 재조회 */});
+
+    // rooms/{roomId}/players 실시간
+    if (unsubPlayers) unsubPlayers();
+    unsubPlayers = db.collection('rooms').doc(room.id)
+      .collection('players').orderBy('joinedAt','asc')
+      .onSnapshot(snap => {
+        latestPlayers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (latestRoomData) renderGame(latestRoomData, latestPlayers);
+      });
   }
 
-  async function fetchPlayers(){
-    const qs = await db.collection('rooms').doc(room.id).collection('players').orderBy('joinedAt','asc').get();
-    return qs.docs.map(d=>({ id:d.id, ...d.data() }));
-  }
   async function answersFor(index){
     const qs = await db.collection('rooms').doc(room.id).collection('answers').where('qIndex','==',index).get();
     return qs.docs.map(d=>d.data());
   }
   async function startGame(){ await db.collection('rooms').doc(room.id).update({ started:true, currentIndex:0 }); }
-  async function nextQuestion(cur){
-    const next = cur+1;
-    await db.collection('rooms').doc(room.id).update({ currentIndex: Math.min(next, QUESTIONS.length) });
+
+  // 호스트/참가자 모두 안전하게 "다음" 진행
+  async function nextQuestionSafe(cur){
+    const ref = db.collection('rooms').doc(room.id);
+    await db.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      if(!snap.exists) throw new Error('room not found');
+      const now = snap.data().currentIndex ?? -1;
+      if(now === cur){
+        tx.update(ref, { currentIndex: Math.min(cur + 1, QUESTIONS.length) });
+      }
+    });
   }
+
   async function pick(index, type){
     const docId = `${me.id}_${index}`;
     return db.collection('rooms').doc(room.id).collection('answers').doc(docId).set({
@@ -287,9 +307,9 @@
   }
 
   // =============== 게임 화면 ===============
-  async function renderGame(roomDoc){
-    const players = await fetchPlayers();
+  async function renderGame(roomDoc, players){
     const cur = roomDoc.currentIndex;
+    curIndex = cur; // 이벤트 위임에서 사용
 
     const headerHTML = `
       <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -311,7 +331,7 @@
               <h3 style="margin:.2rem 0 .6rem">참가자 목록</h3>
               <div>${players.map(p=>`<span class="tag">${p.name}${p.role==='host'?' (호스트)':''}</span>`).join(' ')||'<span class="muted">아직 없음</span>'}</div>
             </div>
-            ${me.role==='host'?'<button class="btn" id="start">게임 시작</button>':''}
+            ${me.role==='host'?'<button type="button" class="btn" id="start">게임 시작</button>':''}
           </section>
           <aside class="card pad">
             <div class="pill">호스트 안내</div>
@@ -398,7 +418,7 @@
             </div>
             ${pairs.length? `<div class="card pad" style="margin-top:10px"><h3 style="margin:.2rem 0 .6rem">페어 매칭 결과</h3>${pairCards}</div>`:''}
             <div class="row" style="margin-top:12px">
-              <button class="btn" id="restart">다시 하기(새 방)</button>
+              <button type="button" class="btn" id="restart">다시 하기(새 방)</button>
             </div>
           </section>
           <aside class="card pad">
@@ -427,11 +447,17 @@
       <div class="grid">
         <section class="card pad">
           ${q.options.map(o=>`
-            <button class="btn block opt ${myPick===o.type?'selected':''}" data-type="${o.type}">${o.text}</button>
+            <button type="button" class="btn block opt ${myPick===o.type?'selected':''}" data-type="${o.type}">${o.text}</button>
           `).join('')}
-          <div class="notice" style="margin-top:10px">선택 후 호스트가 “다음”으로 넘깁니다.</div>
-          <div class="row" style="margin-top:14px;justify-content:flex-end">
-            ${me.role==='host'?'<button class="btn" id="next">다음</button>':''}
+          <div class="notice" style="margin-top:10px">선택 후 누구나 “다음”을 눌러 진행할 수 있습니다.</div>
+          <div class="row" style="margin-top:14px;justify-content:flex-end;gap:8px">
+            ${
+              me.role==='host'
+                ? '<button type="button" class="btn" id="nextHost">다음(호스트)</button>'
+                : (myPick
+                    ? '<button type="button" class="btn" id="nextPlayer">다음</button>'
+                    : '<button type="button" class="btn" disabled title="먼저 선택해주세요">다음</button>')
+            }
           </div>
         </section>
         <aside class="card pad">
@@ -440,30 +466,45 @@
             <span class="tag">A: ${tallyNow.A||0}</span>
             <span class="tag">B: ${tallyNow.B||0}</span>
           </div>
+          <small class="muted">응답 ${picks.length}/${players.length}</small>
           <h3 style="margin:.8rem 0 .6rem">참가자</h3>
           <div>${players.map(p=>`<span class="tag">${p.name}${p.role==='host'?'(호스트)':''}</span>`).join(' ')}</div>
         </aside>
       </div>
     `;
 
-    // 버튼 클릭: 시각적 선택 + Firestore 저장(실패 시 알림)
-    appEl.querySelectorAll('.opt').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        // 시각적 선택 표시
-        appEl.querySelectorAll('.opt').forEach(b=>b.classList.remove('selected'));
-        btn.classList.add('selected');
+    // 호스트/참가자 다음 버튼
+    const btnHost = $('#nextHost');
+    if(btnHost){ btnHost.addEventListener('click', ()=> nextQuestionSafe(cur)); }
+    const btnPlayer = $('#nextPlayer');
+    if(btnPlayer){ btnPlayer.addEventListener('click', ()=> nextQuestionSafe(cur)); }
+  }
 
-        if(!firebaseReady || !db){ alert(`(테스트) "${btn.textContent}" 선택됨`); return; }
+  // ====== 이벤트 위임: 동적 옵션 버튼도 항상 클릭 보장 ======
+  if (!window.__optDelegated) {
+    appEl.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.opt');
+      if (!btn) return;
 
-        try {
-          await pick(cur, btn.dataset.type);
-        } catch(e){
-          alert('선택 저장 실패: ' + (e?.message||e));
-          console.error(e);
-        }
-      });
+      // 시각적 선택 표시
+      appEl.querySelectorAll('.opt').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+
+      // Firestore 연결이 아직 아니면 로컬 테스트 알림
+      if (!firebaseReady || !db) {
+        alert(`(테스트) "${btn.textContent}" 선택됨`);
+        return;
+      }
+
+      // 실제 저장 시도 + 오류 표시
+      try {
+        await pick(curIndex, btn.dataset.type);
+      } catch (err) {
+        alert('선택 저장 실패: ' + (err?.message || err));
+        console.error(err);
+      }
     });
-    if(me.role==='host'){ $('#next').addEventListener('click', ()=>nextQuestion(cur)); }
+    window.__optDelegated = true;
   }
 
   // 첫 렌더
@@ -474,10 +515,11 @@
   </script>
 
   <!-- ▼ Firestore 규칙(테스트용 샘플) – 콘솔 > Firestore Database > Rules에 설정 후 Publish
+  // 데모/테스트에서만 사용하세요. 운영 시에는 인증/제한을 반드시 거세요.
   rules_version = '2';
   service cloud.firestore {
     match /databases/{database}/documents {
-      match /{document=**} { allow read, write: if true; }  // 데모/테스트에만 사용 (운영 금지)
+      match /{document=**} { allow read, write: if true; }
     }
   }
   ▲ -->
