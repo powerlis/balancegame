@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>📚 밸런스 독서 게임 – 실시간 멀티플레이</title>
   <style>
-    /* ====== 첨부 파일의 디스플레이 스타일 계승 ====== */
+    /* ====== 기본 디스플레이(첨부 파일 스타일 기반) ====== */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
 
     :root {
@@ -20,23 +20,30 @@
     }
 
     *{ box-sizing:border-box }
-    html, body { height: 100% }
+    html, body { height: 100%; overflow-x: hidden; }
+
+    /* ✅ 가로 치우침 해결: 세로 스택 + 중앙 정렬 */
     body {
       font-family: 'Noto Sans KR', system-ui, -apple-system, Segoe UI, Roboto, Apple SD Gothic Neo, Malgun Gothic, Arial, sans-serif;
       background-color: var(--bg-color);
       margin: 0;
       padding: 20px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
+      display:flex;
+      flex-direction: column;  /* 세로 */
+      align-items: center;     /* 중앙 */
       min-height: 100vh;
     }
 
-    /* 전체 앱 컨테이너: 카드 느낌 유지 + 반응형 폭 확장 */
+    /* 두 컨테이너 모두 중앙 + 최대폭 */
+    .banner, #app{
+      width: 100%;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    /* 앱 카드 */
     #app {
       background-color: #fff;
-      width: 100%;
-      max-width: 920px;           /* 단일·멀티 레이아웃 모두 수용 */
       border-radius: var(--radius);
       box-shadow: 0 10px 25px rgba(0,0,0,0.08);
       overflow: hidden;
@@ -64,9 +71,9 @@
       line-height: 1.6;
     }
 
-    /* 입력/폼 */
     .row{ display:flex; gap:12px; flex-wrap: wrap }
     .col{ flex:1; min-width:260px }
+
     input[type="text"]{
       width:100%;
       padding:14px 14px;
@@ -81,7 +88,6 @@
       box-shadow: 0 0 0 3px rgba(74,4,78,0.12);
     }
 
-    /* 버튼 (첨부 스타일 유지) */
     .btn {
       display:block;
       width:100%;
@@ -99,7 +105,6 @@
     .btn:hover { background-color: var(--dark-color); border-color: var(--dark-color); transform: translateY(-2px); }
     .btn[disabled]{ opacity:.6; cursor:not-allowed; transform:none }
 
-    /* 옵션 버튼은 흰 배경 + 보라 텍스트(첨부 answer-btn 스타일) */
     .opt {
       background:#fff;
       color:var(--main-color);
@@ -116,18 +121,11 @@
     .opt:hover { background: var(--light-color); color: var(--dark-color); border-color: var(--dark-color); }
     .opt.selected { outline: 3px solid var(--light-color); }
 
-    /* 카드 */
     .card { border-top: 1px solid var(--border-color); }
 
-    /* 진행 막대 */
-    .progress {
-      width: 100%; height: 10px; background: var(--border-color); border-radius: 5px; overflow: hidden; margin-bottom: 16px;
-    }
-    .progress .bar {
-      width:0%; height:100%; background: var(--main-color); transition: width .35s ease;
-    }
+    .progress { width: 100%; height: 10px; background: var(--border-color); border-radius: 5px; overflow: hidden; margin-bottom: 16px; }
+    .progress .bar { width:0%; height:100%; background: var(--main-color); transition: width .35s ease; }
 
-    /* 텍스트 */
     .muted { color: var(--text-light) }
     .tag {
       display:inline-block;
@@ -139,21 +137,22 @@
       font-size: .95rem;
     }
 
-    /* 표 (결과용) */
     table { width:100%; border-collapse: collapse }
     th, td { border:1px solid var(--border-color); padding:8px 10px; text-align: center }
     th { background:#f8fafc }
 
-    /* 배너/경고 */
-    .banner { width:100%; max-width:920px; margin: 10px auto 0; }
+    .banner { margin: 0 0 10px; }
     .error {
       background:#fef2f2; border:1px solid #fecaca; color:#991b1b;
       padding:10px 12px; border-radius: 12px; margin-bottom: 12px; white-space: pre-wrap;
     }
 
-    /* 페이지 전환 애니메이션 느낌 */
     .fadeIn { animation: fadeIn .35s ease }
     @keyframes fadeIn { from{opacity:0; transform: translateY(8px)} to{opacity:1; transform:none} }
+
+    @media (max-width: 540px){
+      body { padding: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -234,7 +233,7 @@
   function renderStart(){
     appEl.innerHTML = `
       <div class="head">
-        <span class="pill">휴대폰 참여 · 실시간</span>
+        <span class="pill">임실고등학교 도서관</span>
         <h1>밸런스 독서 게임</h1>
         <p class="lead">호스트는 방을 만들고, 참가자는 방 코드로 입장합니다.</p>
       </div>
@@ -296,7 +295,7 @@
       db = firebase.firestore();
       firebaseReady = true;
 
-      // 접근 확인용(권한 없으면 에러 노출)
+      // 접근 확인용
       db.collection("_ping").limit(1).get()
         .then(()=>renderStart())
         .catch(e=>{ showErr("Firestore 접근 실패: 콘솔 규칙을 Publish 했는지 확인해 주세요.\n"+(e?.message||e)); renderStart(); });
@@ -435,7 +434,6 @@
       const answers = allAnsSnap.docs.map(d=>d.data());
       const qCount = QUESTIONS.length;
 
-      // 두 참가자 간 매칭된 문제 목록
       function pairMatches(aId, bId){
         const list=[];
         for(let i=0;i<qCount;i++){
@@ -456,8 +454,9 @@
         return { title:'독서 소울메이트 발견! 💞', desc:'책 속에서도 만날 운명! 취향 싱크가 완벽합니다.' };
       }
 
-      // 전체 매칭 표
       const playersNow = players;
+
+      // 전체 매칭 표
       let table = '<table><thead><tr><th>상대</th>';
       playersNow.forEach(p=> table += `<th>${p.name}</th>`);
       table += '</tr></thead><tbody>';
@@ -522,7 +521,7 @@
       return;
     }
 
-    // 진행 화면 (실시간 집계/사이드 제거)
+    // 진행 화면 (실시간 집계/사이드 제거, 참가자는 [다음] 버튼 없음)
     const q = QUESTIONS[cur];
     const picks = await answersFor(cur);
     const myPick = picks.find(a=>a.playerId===me.id)?.type || null;
