@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📚 밸런스 독서 게임</title>
+  <style>
+    body {
+      font-family: "Pretendard", "Noto Sans KR", sans-serif;
+      background: #faf9ff;
+      color: #222;
+      margin: 0;
+      padding: 0;
+    }
+    .wrap { max-width: 800px; margin: 0 auto; padding: 24px; }
+    h1 { text-align: center; margin-bottom: 16px; color: #4a148c; }
+    button { cursor: pointer; border: none; border-radius: 12px; padding: 12px 20px; font-weight: 700; }
+    .btn-primary { background: #7e57c2; color: #fff; }
+    .btn-primary:hover { background: #6a1b9a; }
+    .btn-secondary { background: #eee; color: #333; }
+    .question { font-size: 1.2rem; margin: 24px 0 12px; font-weight: 600; }
+    .option { background: #fff; border: 2px solid #ccc; border-radius: 12px; padding: 12px; margin: 8px 0; }
+    .option:hover { border-color: #7e57c2; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 20px; margin: 20px 0; }
+  </style>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>📖 밸런스 독서 게임</h1>
+    <div id="app" class="card">
+      <p>잠시만요... 로딩 중입니다.</p>
+    </div>
+  </div>
+
+  <script>
+  /* ✅ Firebase 연결 설정 */
+  const firebaseConfig = {
+    apiKey: "AIzaSyApSfouaSStrJ7YKjjU-V3YByqO0cd_AIc",
+    authDomain: "balancegame-43c9b.firebaseapp.com",
+    projectId: "balancegame-43c9b",
+    storageBucket: "balancegame-43c9b.firebasestorage.app",
+    messagingSenderId: "334047765801",
+    appId: "1:334047765801:web:50a37aa30ed5b0f06bc338",
+    measurementId: "G-GEWHJK9SP3"
+  };
+
+  const appFB = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  /* ✅ 밸런스 질문 */
+  const QUESTIONS = [
+    { id:'Q1', title:'책갈피가 없을 때?', options:[
+      { text:'a. 책 모서리 접으면 간단하지', type:'A' },
+      { text:'b. 새 책 느낌 지켜! 절대 접지 않는다', type:'B' }
+    ]},
+    { id:'Q2', title:'읽었던 책을 다시 볼 기회가 있다면?', options:[
+      { text:'a. 새로운 느낌으로 다시 읽으면 재밌겠다.', type:'A' },
+      { text:'b. 한번 본 책을 왜 또 봄?', type:'B' }
+    ]},
+    { id:'Q3', title:'책 읽는 중간에 방해받으면?', options:[
+      { text:'a. 뭐 어때, 신경 끄고 이어서 읽으면 되지', type:'A' },
+      { text:'b. 아, 지금은 읽을 타이밍이 아닌가? 다음에 읽어야지.', type:'B' }
+    ]},
+    { id:'Q4', title:'명대사를 발견하면?', options:[
+      { text:'a. 이건 인생 문장! 인덱스 붙이고 기록해야지', type:'A' },
+      { text:'b. 음.. 좋네...(그냥 마음에만 담아둔다)', type:'B' }
+    ]},
+    { id:'Q5', title:'클라이맥스에서 잠이 올 때?', options:[
+      { text:'a. 졸리면 그냥 잔다 (독서=수면제)', type:'A' },
+      { text:'b. 이야기 흐름 지켜! 끝까지 버틴다', type:'B' }
+    ]},
+    { id:'Q6', title:'책을 고를 때 나는?', options:[
+      { text:'a. 감으로 고른다 (표지, 제목, 느낌!)', type:'A' },
+      { text:'b. 리뷰/추천을 꼼꼼히 보고 고른다', type:'B' }
+    ]},
+    { id:'Q7', title:'책에 물이나 얼룩이 묻었다면?', options:[
+      { text:'a. 마음의 상처, 새로 사고 싶다', type:'A' },
+      { text:'b. 추억의 흔적이라 생각한다', type:'B' }
+    ]},
+    { id:'Q8', title:'나는 내 책에 이름을...', options:[
+      { text:'a. 꼭 적는다(내 소중한 책이니까)', type:'A' },
+      { text:'b. 절대 안 적는다(깨끗해야해!)', type:'B' }
+    ]},
+    { id:'Q9', title:'등장인물이 너무 많다면?', options:[
+      { text:'a. 메모하거나 표시해둔다', type:'A' },
+      { text:'b. 그냥 감으로 기억한다', type:'B' }
+    ]},
+    { id:'Q10', title:'친구가 내게 책을 빌려달라 하면?', options:[
+      { text:'a. 같이 읽자! 기꺼이 빌려준다', type:'A' },
+      { text:'b. 책 헤지면 속상해… 살짝 망설인다', type:'B' }
+    ]}
+  ];
+
+  const app = document.getElementById("app");
+  let answers = [];
+  let current = 0;
+
+  function renderQuestion() {
+    if (current >= QUESTIONS.length) return renderResult();
+    const q = QUESTIONS[current];
+    app.innerHTML = `
+      <h3>${q.title}</h3>
+      ${q.options.map((o,i)=>`
+        <button class="option" onclick="choose('${o.type}')">${o.text}</button>
+      `).join('')}
+      <p style="margin-top:10px;">${current+1} / ${QUESTIONS.length}</p>
+    `;
+  }
+
+  function choose(type) {
+    answers.push(type);
+    current++;
+    renderQuestion();
+  }
+
+  function renderResult() {
+    let aCount = answers.filter(a=>a==='A').length;
+    let bCount = answers.filter(a=>a==='B').length;
+    let same = Math.min(aCount, bCount);
+    let matched = QUESTIONS.length - Math.abs(aCount - bCount);
+
+    let resultText = '';
+    if (matched <= 2) resultText = '책은 같이 읽지만... 마음은 평행선 💫';
+    else if (matched <= 5) resultText = '다르지만 묘하게 통하는 독서 친구 📖';
+    else if (matched <= 8) resultText = '같이 책 고르고 같이 힐링하는 찐독서메이트 🌿';
+    else resultText = '독서 소울메이트 발견! 💞';
+
+    app.innerHTML = `
+      <h2>결과</h2>
+      <p>${resultText}</p>
+      <p>일치 수: ${matched}/10</p>
+      <button class="btn-primary" onclick="restart()">다시 하기</button>
+    `;
+  }
+
+  function restart() {
+    answers = [];
+    current = 0;
+    renderQuestion();
+  }
+
+  renderQuestion();
+  </script>
+</body>
+</html>
