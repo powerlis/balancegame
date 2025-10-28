@@ -25,7 +25,7 @@
     .card{background:var(--card);border:1px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.06);border-radius:var(--radius)}
     .card.pad{padding:22px}
     .grid{display:grid;gap:18px}
-    @media(min-width:900px){.grid{grid-template-columns:1.4fr .8fr}}
+    @media(min-width:900px){.grid{grid-template-columns:1fr}} /* 진행 화면은 단일 컬럼 */
     .row{display:flex;gap:10px;flex-wrap:wrap}
     .col{flex:1;min-width:260px}
     input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid #d1d5db;background:#fff;color:var(--ink)}
@@ -49,12 +49,12 @@
 
     .qnum{display:inline-block;font-weight:900;color:#052c65;background:linear-gradient(135deg,#dbeafe,#bfdbfe);padding:6px 10px;border-radius:999px;font-size:12px;margin-bottom:12px}
     .qtitle{font-size:20px;font-weight:900;margin:0 0 12px}
-    .tag{border:1px solid #d1d5db;padding:6px 10px;border-radius:999px;background:#f3f4f6;display:inline-block;margin:4px 6px 0 0}
     .progress{height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin-bottom:10px}
     .bar{height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--accent));transition:width .25s ease}
     .table{width:100%;border-collapse:collapse}
     .table th,.table td{border:1px solid #e5e7eb;padding:8px 10px;text-align:center}
     .table th{background:#f8fafc}
+    .tag{border:1px solid #d1d5db;padding:6px 10px;border-radius:999px;background:#f3f4f6;display:inline-block;margin:4px 6px 0 0}
   </style>
 </head>
 <body>
@@ -317,7 +317,6 @@
           .collection('answers')
           .where('qIndex','==',cur)
           .onSnapshot(() => {
-            // 응답이 변하면 즉시 리렌더(최신 players/roomDoc을 사용)
             if (latestRoomData) renderGame(latestRoomData, latestPlayers);
           });
       }
@@ -338,7 +337,7 @@
       appEl.innerHTML = `
         ${headerHTML}
         <div class="grid">
-          <section>
+          <section class="card pad">
             <div class="pill">대기실</div>
             <h2 style="margin:.4rem 0 0">참가자를 기다리는 중…</h2>
             <p class="muted">링크를 공유하고 방 코드를 알려 주세요.</p>
@@ -348,10 +347,6 @@
             </div>
             ${me.role==='host'?'<button type="button" class="btn" id="start">게임 시작</button>':''}
           </section>
-          <aside class="card pad">
-            <div class="pill">호스트 안내</div>
-            <p class="muted">모두 입장하면 <b>게임 시작</b>을 눌러 첫 번째 문제로 이동합니다.</p>
-          </aside>
         </div>
       `;
       if(me.role==='host') $('#start').addEventListener('click', startGame);
@@ -364,33 +359,35 @@
       const answers = allAnswers.docs.map(d=>d.data());
       const qCount = QUESTIONS.length;
 
-      function matchesBetween(aId,bId){
-        let same=0; for(let i=0;i<qCount;i++){
+      // 두 플레이어 간 일치 수/항목 계산
+      function pairMatches(aId,bId){
+        const list=[];
+        for(let i=0;i<qCount;i++){
           const Pa = answers.find(x=>x.playerId===aId && x.qIndex===i);
           const Pb = answers.find(x=>x.playerId===bId && x.qIndex===i);
-          if(Pa && Pb && Pa.type===Pb.type) same++;
+          if(Pa && Pb && Pa.type===Pb.type){
+            const optType = Pa.type; // 'A' or 'B'
+            const opt = QUESTIONS[i].options.find(o=>o.type===optType);
+            list.push({
+              index:i,
+              title:QUESTIONS[i].title,
+              type:optType,
+              text:opt ? opt.text : (optType==='A'?'a.':'b.')
+            });
+          }
         }
-        return same;
+        return list;
       }
       function matchMessage(m){
         if(m<=2) return { title:'책은 같이 읽지만... 마음은 평행선 💫', desc:'너희는 완전 정반대 독서 짝꿍! 한 명은 책 모서리 접고, 한 명은 접는 사람 보면 기절하는 타입. 하지만 이런 조합이 제일 재밌지! 매번 토론 아닌 토크쇼 개장!' };
-        if(m<=5) return { title:'다르지만 묘하게 통하는 독서 친구 📖', desc:'둘 다 책은 좋아하지만 접근 방식이 달라요. 한 명은 ‘책은 신성한 존재’, 다른 한 명은 ‘책은 생활 속 친구’. 그래도 서로의 취향을 존중하는 이상적인 독서 듀오!' };
+        if(m<=5) return { title:'다르지만 묘하게 통하는 독서 친구 📖', desc:'둘 다 책은 좋아하지만 접근 방식이 달아요. 한 명은 ‘책은 신성한 존재’, 다른 한 명은 ‘책은 생활 속 친구’. 그래도 서로의 취향을 존중하는 이상적인 독서 듀오!' };
         if(m<=8) return { title:'같이 책 고르고 같이 힐링하는 찐독서메이트 🌿', desc:'책 고를 때, 읽을 때, 심지어 책 읽는 자세까지 비슷해요. 도서관 가면 둘 다 같은 코너에서 마주칠 확률 98%!' };
         return { title:'독서 소울메이트 발견! 💞', desc:'이 정도면 거의 책 속에서도 만나야 할 운명이야. 둘 다 책 넘기는 타이밍도, 책에 손 베이는 손가락 마디도 똑같을 듯!' };
       }
 
       const playersNow = players;
-      const pairs = [];
-      if(playersNow.length>=2){
-        for(let i=0;i<playersNow.length;i++){
-          for(let j=i+1;j<playersNow.length;j++){
-            const a=playersNow[i], b=playersNow[j];
-            const m = matchesBetween(a.id,b.id);
-            pairs.push({a,b,matched:m,msg:matchMessage(m)});
-          }
-        }
-      }
 
+      // 결과 표(겹침 수/비율)
       let table = '<table class="table"><thead><tr><th>상대</th>';
       playersNow.forEach(p=>table+=`<th>${p.name}</th>`);
       table += '</tr></thead><tbody>';
@@ -399,7 +396,8 @@
         playersNow.forEach(c=>{
           if(r.id===c.id) table+='<td>—</td>';
           else {
-            const s=matchesBetween(r.id,c.id);
+            const mlist = pairMatches(r.id,c.id);
+            const s = mlist.length;
             const rate=Math.round((s/qCount)*100);
             table+=`<td>${s}/${qCount} (${rate}%)</td>`;
           }
@@ -408,47 +406,64 @@
       });
       table += '</tbody></table>';
 
-      const pairCards = pairs.map(p=>`
-        <div class="card pad" style="margin-bottom:10px">
-          <div class="pill" style="background:#eef2ff;color:#1e3a8a">${p.a.name} × ${p.b.name}</div>
-          <h3 style="margin:.4rem 0 0">일치 ${p.matched}/${qCount}</h3>
-          <p class="muted" style="margin:.2rem 0 .4rem">${p.msg.title}</p>
-          <p>${p.msg.desc}</p>
-        </div>
-      `).join('');
+      // 페어 카드 + "매칭된 문제 목록"
+      let pairCards = '';
+      if(playersNow.length>=2){
+        for(let i=0;i<playersNow.length;i++){
+          for(let j=i+1;j<playersNow.length;j++){
+            const a=playersNow[i], b=playersNow[j];
+            const mlist = pairMatches(a.id,b.id);
+            const msg = matchMessage(mlist.length);
+            const listHTML = mlist.length
+              ? `<ol style="margin:.4rem 0 0 1.2rem;padding:0">
+                  ${mlist.map(x=>`<li style="margin:.2rem 0">
+                    <b>Q${x.index+1}.</b> ${x.title}<br>
+                    <span class="tag">공통 선택: ${x.type}</span> <span class="tag">${x.text}</span>
+                  </li>`).join('')}
+                 </ol>`
+              : `<p class="muted" style="margin:.4rem 0 0">매칭된 문제가 없습니다.</p>`;
+
+            pairCards += `
+              <div class="card pad" style="margin-bottom:10px">
+                <div class="pill" style="background:#eef2ff;color:#1e3a8a">${a.name} × ${b.name}</div>
+                <h3 style="margin:.4rem 0 0">일치 ${mlist.length}/${qCount}</h3>
+                <p class="muted" style="margin:.2rem 0 .4rem">${msg.title}</p>
+                <p>${msg.desc}</p>
+                <div class="card pad" style="margin-top:8px;background:#fafafa">
+                  <h4 style="margin:.2rem 0 .4rem">매칭된 문제 목록</h4>
+                  ${listHTML}
+                </div>
+              </div>
+            `;
+          }
+        }
+      }
 
       appEl.innerHTML = `
         ${headerHTML}
         <div class="grid">
-          <section>
+          <section class="card pad">
             <div class="pill">게임 종료</div>
             <h2 style="margin:.4rem 0 0">우리의 결과</h2>
             <div class="card pad" style="margin-top:10px">
               <h3 style="margin:.2rem 0 .6rem">취향 겹침(같은 타입 선택 비율)</h3>
               ${table}
             </div>
-            ${pairs.length? `<div class="card pad" style="margin-top:10px"><h3 style="margin:.2rem 0 .6rem">페어 매칭 결과</h3>${pairCards}</div>`:''}
+            ${pairCards ? `<div class="card pad" style="margin-top:10px"><h3 style="margin:.2rem 0 .6rem">페어 매칭 상세</h3>${pairCards}</div>`:''}
             <div class="row" style="margin-top:12px">
               <button type="button" class="btn" id="restart">다시 하기(새 방)</button>
             </div>
           </section>
-          <aside class="card pad">
-            <h3 style="margin:.2rem 0 .6rem">문항별 선택 요약</h3>
-            <div style="max-height:60vh;overflow:auto">
-              ${QUESTIONS.map((q,i)=>`<div class="tag">문항 ${i+1}. ${q.title}</div>`).join('')}
-            </div>
-          </aside>
         </div>
       `;
       $('#restart').addEventListener('click',()=>location.reload());
       return;
     }
 
-    // 진행 화면
+    // 진행 화면(실시간 집계/사이드바 제거)
     const q = QUESTIONS[cur];
     const picks = await answersFor(cur);
     const myPick = picks.find(a=>a.playerId===me.id)?.type || null;
-    const tallyNow = {A:0,B:0}; picks.forEach(a=>tallyNow[a.type]=(tallyNow[a.type]||0)+1);
 
     // 모두 응답 여부(각 참가자 id가 최소 1회 응답했는지)
     const answeredIds = new Set(picks.map(p => p.playerId));
@@ -463,33 +478,21 @@
 
     appEl.innerHTML = `
       ${headerHTML2}
-      <div class="grid">
-        <section class="card pad">
-          ${q.options.map(o=>`
-            <button type="button" class="btn block opt ${myPick===o.type?'selected':''}" data-type="${o.type}">
-              ${o.text}
-            </button>
-          `).join('')}
-          <div class="notice" style="margin-top:10px">
-            선택을 완료하면 호스트가 다음 문항으로 진행합니다.
-          </div>
-          <div class="row" style="margin-top:14px;justify-content:flex-end;gap:8px">
-            ${ me.role==='host'
-                ? `<button type="button" class="btn" id="nextHost" ${!allAnswered?'disabled title="모두 응답해야 진행 가능"':''}>다음(호스트)</button>`
-                : '' }
-          </div>
-        </section>
-        <aside class="card pad">
-          <h3 style="margin:.2rem 0 .6rem">실시간 집계</h3>
-          <div class="row">
-            <span class="tag">A: ${tallyNow.A||0}</span>
-            <span class="tag">B: ${tallyNow.B||0}</span>
-          </div>
-          <small class="muted">응답 ${picks.length}/${players.length}</small>
-          <h3 style="margin:.8rem 0 .6rem">참가자</h3>
-          <div>${players.map(p=>`<span class="tag">${p.name}${p.role==='host'?'(호스트)':''}</span>`).join(' ')}</div>
-        </aside>
-      </div>
+      <section class="card pad">
+        ${q.options.map(o=>`
+          <button type="button" class="btn block opt ${myPick===o.type?'selected':''}" data-type="${o.type}">
+            ${o.text}
+          </button>
+        `).join('')}
+        <div class="notice" style="margin-top:10px">
+          선택을 완료하면 호스트가 다음 문항으로 진행합니다.
+        </div>
+        <div class="row" style="margin-top:14px;justify-content:flex-end;gap:8px">
+          ${ me.role==='host'
+              ? `<button type="button" class="btn" id="nextHost" ${!allAnswered?'disabled title="모두 응답해야 진행 가능"':''}>다음(호스트)</button>`
+              : '' }
+        </div>
+      </section>
     `;
 
     // 호스트만 수동 진행 버튼(전원 응답 시에만 작동)
