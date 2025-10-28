@@ -2,58 +2,62 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>밸런스 독서 게임 – 실시간 멀티플레이</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>밸런스 독서 게임 – 실시간 멀티플레이 (개선본)</title>
   <style>
-    :root{ --bg:#0f1117; --card:#171923; --ink:#e9edf6; --muted:#a7b0c2; --brand:#7aa2ff; --accent:#64d2ff; --ok:#48e6a0; --warn:#ffd166; --radius:18px; }
+    :root{
+      --bg:#0f1117; --card:#171923; --ink:#e9edf6; --muted:#a7b0c2;
+      --brand:#7aa2ff; --accent:#64d2ff; --ok:#48e6a0; --warn:#ffd166; --bad:#ff6b6b;
+      --radius:18px;
+    }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;font-family:'Noto Sans KR',system-ui,-apple-system,Segoe UI,Roboto,Pretendard,Apple SD Gothic Neo,Malgun Gothic,Arial,sans-serif;background:
-      radial-gradient(1200px 1200px at 15% -10%,rgba(122,162,255,.12),transparent 60%),
-      radial-gradient(1200px 1200px at 110% 20%,rgba(100,210,255,.10),transparent 60%),var(--bg);color:var(--ink)}
+    body{
+      margin:0;font-family:"Noto Sans KR",system-ui,-apple-system,Segoe UI,Roboto,Pretendard,Apple SD Gothic Neo,Malgun Gothic,Arial,sans-serif;
+      background:
+        radial-gradient(1200px 1200px at 15% -10%,rgba(122,162,255,.12),transparent 60%),
+        radial-gradient(1200px 1200px at 110% 20%,rgba(100,210,255,.10),transparent 60%),
+        var(--bg);
+      color:var(--ink)
+    }
     .wrap{max-width:980px;margin:0 auto;padding:28px 18px 80px}
     header{display:flex;align-items:center;gap:12px;margin:8px 0 18px}
-    header .pill{font-size:12px;color:#06101f;background:linear-gradient(135deg,var(--ok),#7bffeb);padding:6px 12px;border-radius:999px;font-weight:800;letter-spacing:.2px}
+    .pill{font-size:12px;color:#06101f;background:linear-gradient(135deg,var(--ok),#7bffeb);padding:6px 12px;border-radius:999px;font-weight:800;letter-spacing:.2px}
     h1{font-size:clamp(26px,5vw,40px);margin:.2rem 0 .2rem;line-height:1.15}
     p.lead{color:var(--muted);margin:.2rem 0 1.2rem;font-size:15px}
-
     .card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);box-shadow:0 15px 40px rgba(0,0,0,.35);backdrop-filter: blur(8px);border-radius:var(--radius)}
     .card.pad{padding:22px}
-
-    .btn{appearance:none;border:0;border-radius:14px;padding:12px 16px;font-weight:800;background:linear-gradient(135deg,var(--brand),#9ad2ff);color:#0d1b2a;cursor:pointer;box-shadow:0 6px 20px rgba(122,162,255,.35);transition:transform .05s ease,filter .2s ease}
-    .btn:hover{filter:brightness(1.03)}
-    .btn:active{transform:translateY(1px)}
-    .btn.ghost{background:transparent;color:var(--ink);border:1px solid rgba(255,255,255,.14);box-shadow:none}
-    .btn.block{width:100%}
-    .btn.small{padding:8px 10px;border-radius:10px;font-weight:700}
-
+    .grid{display:grid;gap:18px}
+    @media(min-width:900px){.grid{grid-template-columns:1.4fr .8fr}}
     .row{display:flex;gap:10px;flex-wrap:wrap}
     .col{flex:1;min-width:250px}
+    input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:var(--ink)}
+    .muted{color:var(--muted)}
 
-    input[type="text"], input[type="password"], select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:var(--ink)}
+    /* 버튼 가독성/선택 강조 개선 */
+    .btn{
+      appearance:none;border:0;border-radius:14px;padding:14px 18px;font-weight:800;
+      background:linear-gradient(135deg,#4a90e2,#6cc4ff); color:#fff; /* 흰 글씨 */
+      cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.30);
+      transition:transform .05s ease,filter .2s ease,outline-color .2s ease;
+    }
+    .btn:hover{filter:brightness(1.1)}
+    .btn:active{transform:translateY(1px)}
+    .btn.block{width:100%}
+    .btn.ghost{background:transparent;color:var(--ink);border:1px solid rgba(255,255,255,.18);box-shadow:none}
+    .btn.selected{outline:3px solid #ffcc00;filter:brightness(1.2)}
 
-    .progress{height:10px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;margin-bottom:10px}
-    .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#b3e5ff);transition:width .25s ease}
+    .notice{background:rgba(255,255,255,.08);padding:10px;border-radius:12px;margin-top:12px}
+    .error{background:#2b0000;border:1px solid #ff8a8a;color:#ffdede;padding:10px;border-radius:10px;margin:10px 0;white-space:pre-wrap}
 
     .qnum{display:inline-block;font-weight:900;color:#0b1020;background:linear-gradient(135deg,#a0b7ff,#d0e3ff);padding:6px 10px;border-radius:999px;font-size:12px;margin-bottom:12px}
     .qtitle{font-size:20px;font-weight:900;margin:0 0 12px}
-
-    .opts{display:grid;gap:10px;margin-top:10px}
-    .opt{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.03);cursor:pointer}
-
-    .badge{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border:1px solid rgba(255,255,255,.15);border-radius:999px;background:rgba(255,255,255,.06);font-weight:800}
     .tag{border:1px solid rgba(255,255,255,.18);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06);display:inline-block;margin:4px 6px 0 0}
-    .muted{color:var(--muted)}
-    .grid{display:grid;gap:18px}
-    @media(min-width:900px){.grid{grid-template-columns:1.4fr .8fr}}
+    .progress{height:10px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;margin-bottom:10px}
+    .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#b3e5ff);transition:width .25s ease}
     .table{width:100%;border-collapse:collapse}
     .table th,.table td{border:1px solid rgba(255,255,255,.15);padding:8px 10px;text-align:center}
     .table th{background:rgba(255,255,255,.06)}
-    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-    .notice{background:rgba(255,255,255,.08);padding:10px;border-radius:12px;margin-top:10px}
   </style>
 </head>
 <body>
@@ -66,37 +70,35 @@
       </div>
     </header>
 
+    <div id="banner"></div>
+
     <main id="app" class="card pad" aria-live="polite">
-      <noscript>이 페이지를 사용하려면 자바스크립트가 필요합니다.</noscript>
+      <!-- UI 먼저 렌더, Firebase는 나중에 연결 -->
     </main>
 
-    <footer class="muted" style="margin-top:10px;font-size:12px">Powered by Firebase Firestore (client-only demo). 실제 운영 시 인증·규칙을 강화하세요.</footer>
+    <footer class="muted" style="margin-top:10px;font-size:12px">
+      Powered by Firebase Firestore (client-only demo). 실제 운영 시 인증·규칙을 강화하세요.
+    </footer>
   </div>
 
-  <!-- Firebase SDKs (CDN, compat) -->
+  <!-- Firebase SDK (CDN/compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
 
   <script>
-  /* =========================
-     1) Firebase 설정 (사용자 값)
-     ========================= */
-  const firebaseConfig = {
-    apiKey: "AIzaSyApSfouaSStrJ7YKjjU-V3YByqO0cd_AIc",
-    authDomain: "balancegame-43c9b.firebaseapp.com",
-    projectId: "balancegame-43c9b",
-    storageBucket: "balancegame-43c9b.firebasestorage.app",
-    messagingSenderId: "334047765801",
-    appId: "1:334047765801:web:50a37aa30ed5b0f06bc338",
-    measurementId: "G-GEWHJK9SP3"
-  };
+  // =============== 공통 상태/유틸 ===============
+  const appEl = document.getElementById('app');
+  const banner = document.getElementById('banner');
+  const $ = (s,c=document)=>c.querySelector(s);
+  const uid = ()=>'P'+Math.random().toString(36).slice(2,8).toUpperCase();
+  const code6 = ()=>Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(2,8);
 
-  const appFB = firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+  let me = { id:null, name:'', role:'player' };
+  let room = { id:null, secret:null };
+  let db = null;
+  let firebaseReady = false;
+  let unsubRoom = null, unsubPlayers = null;
 
-  /* =========================
-     2) 밸런스 10문항 (A/B)
-     ========================= */
   const QUESTIONS = [
     { id:'Q1', title:'책갈피가 없을 때?', options:[
       { text:'a. 책 모서리 접으면 간단하지', type:'A' },
@@ -140,24 +142,92 @@
     ]}
   ];
 
-  /* =========================
-     3) 전역 상태/유틸
-     ========================= */
-  const appEl = document.getElementById('app');
-  const $ = (s,c=appEl)=>c.querySelector(s);
-  let me = { id: null, name: '', role: 'player' }; // 'host' | 'player'
-  let room = { id: null, secret: null };
-  let unsubRoom = null, unsubPlayers = null;
+  // =============== 시작 화면 (Firebase 없어도 렌더) ===============
+  function renderStart(){
+    appEl.innerHTML = `
+      <div class="grid">
+        <section class="card pad">
+          <div class="pill">역할 선택</div>
+          <h2 style="margin:.4rem 0 0">호스트로 방 만들기 / 참가자로 입장</h2>
+          <div class="row" style="margin-top:12px">
+            <div class="col">
+              <input id="hostName" type="text" placeholder="호스트 이름(예: 교사/사회자)" />
+              <button class="btn block" id="mkroom" style="margin-top:8px">방 만들기</button>
+            </div>
+            <div class="col">
+              <input id="code" type="text" placeholder="방 코드(예: ABC123)" />
+              <input id="name" type="text" placeholder="내 이름(참가자)" style="margin-top:8px" />
+              <button class="btn block" id="join" style="margin-top:8px">참가자로 입장</button>
+            </div>
+          </div>
+          <div class="notice">Firestore 준비 상태: <b>${firebaseReady?'정상 연결':'미연결(테스트 규칙 권장)'}</b></div>
+        </section>
+        <aside class="card pad">
+          <div class="pill">TIP</div>
+          <p class="muted">참가자는 휴대폰에서 이 페이지 링크를 열고, <b>방 코드</b>와 <b>자기 이름</b>만 입력하면 됩니다.</p>
+        </aside>
+      </div>
+    `;
 
-  const uid = ()=>'P'+Math.random().toString(36).slice(2,8).toUpperCase();
-  const code6 = () => Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(2,8);
+    // 안전한 핸들러(에러 알림 추가)
+    $('#mkroom').addEventListener('click', async ()=>{
+      if(!firebaseReady) return warn('Firebase가 연결되지 않았습니다. 콘솔 설정과 Firestore 규칙을 확인하세요.');
+      const name = $('#hostName').value.trim()||'Host';
+      try { await createRoom(name); }
+      catch(e){ alert('방 만들기 실패: ' + (e?.message||e)); console.error(e); }
+    });
 
+    $('#join').addEventListener('click', async ()=>{
+      if(!firebaseReady) return warn('Firebase가 연결되지 않았습니다. 콘솔 설정과 Firestore 규칙을 확인하세요.');
+      const code = $('#code').value.trim().toUpperCase();
+      const name = $('#name').value.trim()||'참가자';
+      if(!code) return alert('방 코드를 입력해 주세요.');
+      try { await joinRoom(code, name); }
+      catch(e){ alert('입장 실패: ' + (e?.message||e)); console.error(e); }
+    });
+  }
+
+  function warn(msg){
+    banner.innerHTML = `<div class="error">⚠️ ${msg}</div>`;
+    console.error(msg);
+  }
+
+  // =============== Firebase 연결 (지연 시도) ===============
+  (function connectFirebase(){
+    try{
+      const cfg = {
+        apiKey: "AIzaSyApSfouaSStrJ7YKjjU-V3YByqO0cd_AIc",
+        authDomain: "balancegame-43c9b.firebaseapp.com",
+        projectId: "balancegame-43c9b",
+        storageBucket: "balancegame-43c9b.appspot.com", /* storage는 안 써도 무방 */
+        messagingSenderId: "334047765801",
+        appId: "1:334047765801:web:50a37aa30ed5b0f06bc338",
+        measurementId: "G-GEWHJK9SP3"
+      };
+      if(!(window.firebase && firebase.initializeApp)){
+        warn("Firebase SDK가 로드되지 않았습니다. (CDN 차단/네트워크 문제 가능)");
+        renderStart(); return;
+      }
+      const appFB = firebase.initializeApp(cfg);
+      db = firebase.firestore();
+      firebaseReady = true;
+      // 읽기 테스트(권한 확인)
+      db.collection("_ping").limit(1).get()
+        .then(()=>renderStart())
+        .catch(e=>{ warn("Firestore 접근 실패: 규칙 또는 프로젝트 설정을 확인하세요.\n"+(e?.message||e)); renderStart(); });
+    }catch(e){
+      warn("Firebase 초기화 오류: " + (e?.message||e));
+      renderStart();
+    }
+  })();
+
+  // =============== Firestore 동작 함수 ===============
   async function createRoom(hostName){
     const id = code6();
     const secret = Math.random().toString(36).slice(2,10);
     await db.collection('rooms').doc(id).set({
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      currentIndex: -1, // -1=대기, 0..N-1 진행, N 이상 종료
+      currentIndex: -1,
       started: false,
       hostId: null,
       secret,
@@ -187,99 +257,44 @@
   function listenRoom(){
     if(unsubRoom) unsubRoom();
     unsubRoom = db.collection('rooms').doc(room.id).onSnapshot(doc=>{
-      if(!doc.exists){ alert('방이 종료되었습니다.'); renderStart(); return; }
+      if(!doc.exists){ warn('방이 종료되었습니다.'); renderStart(); return; }
       renderGame(doc.data());
     });
     if(unsubPlayers) unsubPlayers();
     unsubPlayers = db.collection('rooms').doc(room.id).collection('players').orderBy('joinedAt','asc')
-      .onSnapshot(()=>{ /* renderGame에서 다시 읽음 */ });
+      .onSnapshot(()=>{/* renderGame 내부에서 재조회 */});
   }
 
   async function fetchPlayers(){
     const qs = await db.collection('rooms').doc(room.id).collection('players').orderBy('joinedAt','asc').get();
     return qs.docs.map(d=>({ id:d.id, ...d.data() }));
   }
-
   async function answersFor(index){
     const qs = await db.collection('rooms').doc(room.id).collection('answers').where('qIndex','==',index).get();
     return qs.docs.map(d=>d.data());
   }
-
-  async function startGame(){
-    await db.collection('rooms').doc(room.id).update({ started:true, currentIndex:0 });
-  }
+  async function startGame(){ await db.collection('rooms').doc(room.id).update({ started:true, currentIndex:0 }); }
   async function nextQuestion(cur){
     const next = cur+1;
-    if(next >= QUESTIONS.length){
-      await db.collection('rooms').doc(room.id).update({ currentIndex: QUESTIONS.length });
-    }else{
-      await db.collection('rooms').doc(room.id).update({ currentIndex: next });
-    }
+    await db.collection('rooms').doc(room.id).update({ currentIndex: Math.min(next, QUESTIONS.length) });
   }
   async function pick(index, type){
     const docId = `${me.id}_${index}`;
-    await db.collection('rooms').doc(room.id).collection('answers').doc(docId).set({
+    return db.collection('rooms').doc(room.id).collection('answers').doc(docId).set({
       playerId: me.id, name: me.name, qIndex: index, type,
       at: firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge:true });
   }
 
-  /* =========================
-     4) 렌더 – 시작 화면
-     ========================= */
-  function renderStart(){
-    appEl.innerHTML = `
-      <div class="grid">
-        <section class="pad">
-          <div class="badge">역할 선택</div>
-          <h2 style="margin:.4rem 0 0">호스트로 방 만들기 / 참가자로 입장</h2>
-          <div class="row" style="margin-top:12px">
-            <div class="col">
-              <label class="sr-only" for="hostName">호스트 이름</label>
-              <input id="hostName" type="text" placeholder="호스트 이름(예: 교사/사회자)" />
-              <button class="btn block" id="mkroom" style="margin-top:8px">방 만들기</button>
-            </div>
-            <div class="col">
-              <label class="sr-only" for="code">방 코드</label>
-              <input id="code" type="text" placeholder="방 코드(예: ABC123)" />
-              <label class="sr-only" for="name">내 이름</label>
-              <input id="name" type="text" placeholder="내 이름(참가자)" style="margin-top:8px" />
-              <button class="btn block" id="join" style="margin-top:8px">참가자로 입장</button>
-            </div>
-          </div>
-          <div class="notice" style="margin-top:12px">
-            Firestore는 <b>테스트 모드</b>로 시작하거나, Rules를 적절히 설정하세요. (아래 주석 참고)
-          </div>
-        </section>
-        <aside class="card pad">
-          <div class="badge">TIP</div>
-          <p class="muted">참가자는 휴대폰에서 이 페이지 링크를 열고, <b>방 코드</b>와 <b>자기 이름</b>만 입력하면 됩니다.</p>
-        </aside>
-      </div>
-    `;
-    $('#mkroom').addEventListener('click',()=>{
-      const name = $('#hostName').value.trim()||'Host';
-      createRoom(name);
-    });
-    $('#join').addEventListener('click',()=>{
-      const code = $('#code').value.trim().toUpperCase();
-      const name = $('#name').value.trim()||'참가자';
-      if(!code) return alert('방 코드를 입력해 주세요.');
-      joinRoom(code, name);
-    });
-  }
-
-  /* =========================
-     5) 렌더 – 게임/결과 화면
-     ========================= */
+  // =============== 게임 화면 ===============
   async function renderGame(roomDoc){
     const players = await fetchPlayers();
     const cur = roomDoc.currentIndex;
 
     const headerHTML = `
       <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div><span class="badge">방 코드</span> <b style="letter-spacing:1px">${room.id}</b></div>
-        <div><span class="badge">인원</span> ${players.length}명</div>
+        <div><span class="pill">방 코드</span> <b style="letter-spacing:1px">${room.id}</b></div>
+        <div><span class="pill">인원</span> ${players.length}명</div>
       </div>
     `;
 
@@ -289,7 +304,7 @@
         ${headerHTML}
         <div class="grid">
           <section>
-            <div class="badge">대기실</div>
+            <div class="pill">대기실</div>
             <h2 style="margin:.4rem 0 0">참가자를 기다리는 중…</h2>
             <p class="muted">링크를 공유하고 방 코드를 알려 주세요.</p>
             <div class="card pad" style="margin-top:10px">
@@ -299,7 +314,7 @@
             ${me.role==='host'?'<button class="btn" id="start">게임 시작</button>':''}
           </section>
           <aside class="card pad">
-            <div class="badge">호스트 안내</div>
+            <div class="pill">호스트 안내</div>
             <p class="muted">모두 입장하면 <b>게임 시작</b>을 눌러 첫 번째 문제로 이동합니다.</p>
           </aside>
         </div>
@@ -314,12 +329,6 @@
       const answers = allAnswers.docs.map(d=>d.data());
       const qCount = QUESTIONS.length;
 
-      // 개인 A/B 집계
-      const tally = {}; // { playerId: {A,B} }
-      players.forEach(p=>tally[p.id] = {A:0,B:0});
-      answers.forEach(a=>{ if(tally[a.playerId]) tally[a.playerId][a.type]++; });
-
-      // 페어 일치 수 계산
       function matchesBetween(aId,bId){
         let same=0; for(let i=0;i<qCount;i++){
           const Pa = answers.find(x=>x.playerId===aId && x.qIndex===i);
@@ -341,8 +350,7 @@
           for(let j=i+1;j<players.length;j++){
             const a=players[i], b=players[j];
             const m = matchesBetween(a.id,b.id);
-            const msg = matchMessage(m);
-            pairs.push({a,b,matched:m,msg});
+            pairs.push({a,b,matched:m,msg:matchMessage(m)});
           }
         }
       }
@@ -356,41 +364,34 @@
         }
         return same;
       }
-      const table = (()=>{
-        let h = '<table class="table"><thead><tr><th>상대</th>' + players.map(p=>`<th>${p.name}</th>`).join('') + '</tr></thead><tbody>';
-        players.forEach(r=>{
-          h += '<tr><th>'+r.name+'</th>';
-          players.forEach(c=>{
-            if(r.id===c.id) h+='<td>—</td>';
-            else { const s = sameCount(r.id,c.id); const rate = Math.round((s/qCount)*100); h+=`<td>${s}/${qCount} (${rate}%)</td>`; }
-          });
-          h += '</tr>';
+      let table = '<table class="table"><thead><tr><th>상대</th>';
+      players.forEach(p=>table+=`<th>${p.name}</th>`);
+      table += '</tr></thead><tbody>';
+      players.forEach(r=>{
+        table += `<tr><th>${r.name}</th>`;
+        players.forEach(c=>{
+          if(r.id===c.id) table+='<td>—</td>';
+          else { const s=sameCount(r.id,c.id), rate=Math.round((s/qCount)*100); table+=`<td>${s}/${qCount} (${rate}%)</td>`; }
         });
-        h += '</tbody></table>'; return h;
-      })();
+        table += '</tr>';
+      });
+      table += '</tbody></table>';
 
-      const cards = players.map(p=>{
-        const sc = tally[p.id];
-        const scoreStr = Object.keys(sc).map(k=>`${k}:${sc[k]}`).join(' · ');
-        return `<div class="card pad" style="margin-bottom:10px"><div class="badge">${p.name}</div><p class="muted" style="margin:.2rem 0 0">${scoreStr}</p></div>`;
-      }).join('');
-
-      const pairCards = pairs.map(p=>{
-        return `<div class="card pad" style="margin-bottom:10px">
-          <div class="badge">${p.a.name} × ${p.b.name}</div>
+      const pairCards = pairs.map(p=>`
+        <div class="card pad" style="margin-bottom:10px">
+          <div class="pill" style="background:rgba(255,255,255,.12)">${p.a.name} × ${p.b.name}</div>
           <h3 style="margin:.4rem 0 0">일치 ${p.matched}/${qCount}</h3>
           <p class="muted" style="margin:.2rem 0 .4rem">${p.msg.title}</p>
           <p>${p.msg.desc}</p>
-        </div>`;
-      }).join('');
+        </div>
+      `).join('');
 
       appEl.innerHTML = `
         ${headerHTML}
         <div class="grid">
           <section>
-            <div class="badge">게임 종료</div>
+            <div class="pill">게임 종료</div>
             <h2 style="margin:.4rem 0 0">우리의 결과</h2>
-            ${cards}
             <div class="card pad" style="margin-top:10px">
               <h3 style="margin:.2rem 0 .6rem">취향 겹침(같은 타입 선택 비율)</h3>
               ${table}
@@ -401,100 +402,82 @@
             </div>
           </section>
           <aside class="card pad">
-            <h3 style="margin:.2rem 0 .6rem">문항별 요약</h3>
+            <h3 style="margin:.2rem 0 .6rem">문항별 선택 요약</h3>
             <div style="max-height:60vh;overflow:auto">
-              ${QUESTIONS.map((q,i)=>{
-                const li = players.map(p=>{
-                  const a = answers.find(x=>x.playerId===p.id && x.qIndex===i);
-                  return `<li><b>${p.name}</b>: ${a? a.type : '-'} </li>`;
-                }).join('');
-                return `<details class="card pad" style="margin-bottom:8px"><summary><b>문항 ${i+1}.</b> ${q.title}</summary><ul style="margin:.6rem 0 0 16px">${li}</ul></details>`;
-              }).join('')}
+              ${QUESTIONS.map((q,i)=>`<div class="tag">문항 ${i+1}. ${q.title}</div>`).join('')}
             </div>
           </aside>
         </div>
       `;
-      $('#restart').addEventListener('click',()=>{ location.reload(); });
+      $('#restart').addEventListener('click',()=>location.reload());
       return;
     }
 
     // 진행 화면
     const q = QUESTIONS[cur];
-    const answers = await answersFor(cur);
-    const myPick = answers.find(a=>a.playerId===me.id)?.type || null;
-    const tallyNow = {A:0,B:0}; answers.forEach(a=>tallyNow[a.type] = (tallyNow[a.type]||0)+1);
+    const picks = await answersFor(cur);
+    const myPick = picks.find(a=>a.playerId===me.id)?.type || null;
+    const tallyNow = {A:0,B:0}; picks.forEach(a=>tallyNow[a.type]=(tallyNow[a.type]||0)+1);
 
     appEl.innerHTML = `
       ${headerHTML}
-      <div class="progress" aria-hidden="true"><div class="bar" style="width:${Math.round((cur/QUESTIONS.length)*100)}%"></div></div>
+      <div class="progress"><div class="bar" style="width:${Math.round((cur/QUESTIONS.length)*100)}%"></div></div>
       <div class="qnum">문항 ${cur+1} / ${QUESTIONS.length}</div>
       <h3 class="qtitle">${q.title}</h3>
-
-      <div class="opts" role="group" aria-label="선택지">
-        ${q.options.map(o=>`
-          <button class="btn block opt" data-type="${o.type}" ${myPick===o.type? 'style="outline:2px solid #b3e5ff"':''}>${o.text}</button>
-        `).join('')}
-      </div>
-
-      <div class="grid" style="margin-top:14px">
+      <div class="grid">
         <section class="card pad">
-          <h3 style="margin:.2rem 0 .6rem">실시간 집계</h3>
-          <div class="row">${Object.entries(tallyNow).map(([k,v])=>`<span class="tag">${k}: ${v}</span>`).join('')}</div>
+          ${q.options.map(o=>`
+            <button class="btn block opt ${myPick===o.type?'selected':''}" data-type="${o.type}">${o.text}</button>
+          `).join('')}
+          <div class="notice" style="margin-top:10px">선택 후 호스트가 “다음”으로 넘깁니다.</div>
+          <div class="row" style="margin-top:14px;justify-content:flex-end">
+            ${me.role==='host'?'<button class="btn" id="next">다음</button>':''}
+          </div>
         </section>
         <aside class="card pad">
-          <h3 style="margin:.2rem 0 .6rem">참가자</h3>
-          <div>${players.map(p=>`<span class="tag">${p.name}</span>`).join(' ')}</div>
+          <h3 style="margin:.2rem 0 .6rem">실시간 집계</h3>
+          <div class="row">
+            <span class="tag">A: ${tallyNow.A||0}</span>
+            <span class="tag">B: ${tallyNow.B||0}</span>
+          </div>
+          <h3 style="margin:.8rem 0 .6rem">참가자</h3>
+          <div>${players.map(p=>`<span class="tag">${p.name}${p.role==='host'?'(호스트)':''}</span>`).join(' ')}</div>
         </aside>
       </div>
-
-      <div class="row" style="margin-top:16px;justify-content:space-between">
-        ${me.role==='host'?'<button class="btn ghost" id="prev">이전</button>':''}
-        <div class="row">
-          ${me.role==='host'?'<button class="btn" id="next">다음</button>':''}
-        </div>
-      </div>
     `;
+
+    // 버튼 클릭: 시각적 선택 + Firestore 저장(실패 시 알림)
     appEl.querySelectorAll('.opt').forEach(btn=>{
-      btn.addEventListener('click',()=> pick(cur, btn.dataset.type));
+      btn.addEventListener('click', async ()=>{
+        // 시각적 선택 표시
+        appEl.querySelectorAll('.opt').forEach(b=>b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        if(!firebaseReady || !db){ alert(`(테스트) "${btn.textContent}" 선택됨`); return; }
+
+        try {
+          await pick(cur, btn.dataset.type);
+        } catch(e){
+          alert('선택 저장 실패: ' + (e?.message||e));
+          console.error(e);
+        }
+      });
     });
-    if(me.role==='host'){
-      $('#prev').addEventListener('click',()=>{ if(cur>0) db.collection('rooms').doc(room.id).update({ currentIndex: cur-1 }); });
-      $('#next').addEventListener('click',()=> nextQuestion(cur));
-    }
+    if(me.role==='host'){ $('#next').addEventListener('click', ()=>nextQuestion(cur)); }
   }
 
-  // 처음 화면 진입
+  // 첫 렌더
   renderStart();
+
+  // 전역 에러 배너
+  window.addEventListener('error', e=>{ warn("스크립트 오류: " + (e?.message||e)); });
   </script>
 
-  <!-- ▼ Firestore Rules (참고용, 콘솔 > Firestore > 규칙에 설정)
-  // 빠른 테스트(배포 비권장)
+  <!-- ▼ Firestore 규칙(테스트용 샘플) – 콘솔 > Firestore Database > Rules에 설정 후 Publish
   rules_version = '2';
   service cloud.firestore {
     match /databases/{database}/documents {
-      match /{document=**} { allow read, write: if true; }
-    }
-  }
-
-  // 기초 제한 샘플(실서비스는 인증/hostKey 검증 권장)
-  rules_version = '2';
-  service cloud.firestore {
-    match /databases/{database}/documents {
-      match /rooms/{roomId} {
-        allow read: if true;
-        allow create: if request.resource.data.currentIndex == -1
-                      && request.resource.data.keys().hasOnly(['createdAt','currentIndex','started','hostId','secret']);
-        allow update, delete: if false; // 필요시 커스터마이즈
-
-        match /players/{playerId} {
-          allow read: if true;
-          allow create, update: if true; // 데모용
-        }
-        match /answers/{docId} {
-          allow read: if true;
-          allow create, update: if true; // 데모용
-        }
-      }
+      match /{document=**} { allow read, write: if true; }  // 데모/테스트에만 사용 (운영 금지)
     }
   }
   ▲ -->
