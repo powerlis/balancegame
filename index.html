@@ -16,6 +16,9 @@
       --text-light: #6b7280;
       --border-color: #e5e7eb;
       --radius: 20px;
+      --blue-strong: #2563eb; /* 테두리 */
+      --blue-bg: #eff6ff;     /* 배경 */
+      --blue-text: #1e3a8a;   /* 글자 */
     }
 
     * { box-sizing: border-box; }
@@ -37,7 +40,7 @@
       max-width: 920px;
       border-radius: var(--radius);
       box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-      overflow: hidden;
+      overflow: visible; /* 결과 스크롤 컨테이너 보이게 */
     }
 
     /* header */
@@ -124,6 +127,27 @@
     th,td{border:1px solid var(--border-color);padding:8px 10px;text-align:center;}
     th{background:#f9fafb;}
 
+    /* 결과 스크롤 컨테이너 */
+    .result-scroll{
+      max-height: calc(100vh - 230px); /* 헤더/여백 제외 */
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 12px;
+    }
+
+    /* 일치 문구 강조 박스 */
+    .match-box{
+      border:3px solid var(--blue-strong);
+      background: var(--blue-bg);
+      border-radius:12px;
+      padding:14px 16px;
+      margin:10px 0;
+      font-weight:800;
+      font-size:1.15rem;
+      color: var(--blue-text);
+      text-align:center;
+    }
+
     @media (max-width:540px){ body{ padding:12px; } }
   </style>
 </head>
@@ -136,7 +160,7 @@
 
   <script>
   /* ========= Utils & State ========= */
-  const appEl = document.getElementById('app');     // ✅ 전역 의존 제거
+  const appEl = document.getElementById('app');
   const $ = (s,c=document)=>c.querySelector(s);
   const uid = ()=> 'P'+Math.random().toString(36).slice(2,9).toUpperCase();
   const code6 = ()=> Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(2,8);
@@ -144,7 +168,7 @@
   let db = null;
   let me = { id:null, name:'', role:'player' };
   let room = { id:null };
-  let unsubRoom=null, unsubPlayers=null, unsubAnswers=null, subscribedIndex=null;
+  let unsubRoom=null, unsubPlayers=null, unsubAnswers=null;
   let latestRoomData=null, latestPlayers=[];
   let curIndex= -1;
 
@@ -237,13 +261,12 @@
 
     if(unsubPlayers)unsubPlayers();
     unsubPlayers = db.collection('rooms').doc(room.id).collection('players')
-      .orderBy('joinedAt','asc')                        // ✅ 안정 정렬
+      .orderBy('joinedAt','asc')
       .onSnapshot(snap=>{
         latestPlayers = snap.docs.map(d=>({id:d.id, ...d.data()}));
         renderGame();
       });
 
-    // 현재 문항의 답변도 실시간 청취 (문항 이동 시 구독 갱신)
     syncAnswerSubscription();
   }
 
@@ -253,9 +276,6 @@
       unsubAnswers = db.collection('rooms').doc(room.id).collection('answers')
         .where('qIndex','==',curIndex)
         .onSnapshot(()=> renderGame());
-      subscribedIndex = curIndex;
-    }else{
-      subscribedIndex = null;
     }
   }
 
@@ -267,7 +287,6 @@
   }
 
   async function nextQuestionSafe(i){
-    // 트랜잭션으로 중복 클릭 방지
     const ref = db.collection('rooms').doc(room.id);
     await db.runTransaction(async tx=>{
       const snap = await tx.get(ref);
@@ -298,7 +317,7 @@
   async function renderGame(){
     if(!latestRoomData) return;
 
-    // Lobby
+    // 대기실
     if(!latestRoomData.started || curIndex<0){
       appEl.innerHTML = `
         <div class="head">
@@ -315,7 +334,7 @@
       return;
     }
 
-    // Result
+    // 결과
     if(curIndex >= QUESTIONS.length){
       const all = await db.collection('rooms').doc(room.id).collection('answers').get();
       const ans = all.docs.map(d=>d.data());
@@ -342,7 +361,7 @@
 
       let html = `
         <div class="head"><span class="pill">결과</span><h1>매칭 결과</h1></div>
-        <div class="pad card">
+        <div class="pad card result-scroll">
           <table><thead><tr><th>상대</th>${latestPlayers.map(p=>`<th>${p.name}</th>`).join('')}</tr></thead><tbody>
       `;
       latestPlayers.forEach(r=>{
@@ -355,7 +374,7 @@
       });
       html += `</tbody></table>`;
 
-      // Pair details
+      // 페어 상세
       for(let i=0;i<latestPlayers.length;i++){
         for(let j=i+1;j<latestPlayers.length;j++){
           const A = latestPlayers[i], B = latestPlayers[j];
@@ -365,17 +384,21 @@
             <div class="pad card" style="margin-top:12px">
               <span class="pill">${A.name} × ${B.name}</span>
               <h3 style="margin:.6rem 0 0">일치 ${same.length}/${QN}</h3>
-              <p class="muted" style="margin:.2rem 0 .4rem">${m.t}</p>
-              <p>${m.d}</p>
+
+              <!-- 강조 박스 -->
+              <div class="match-box">${m.t}</div>
+
+              <p style="margin:.2rem 0 .6rem">${m.d}</p>
               <div class="pad" style="background:#f9fafb;border:1px solid var(--border-color);border-radius:14px;margin-top:8px">
                 <h4 style="margin:.2rem 0 .4rem">매칭된 문제</h4>
-                ${ same.length
-                    ? `<ol style="margin:.4rem 0 0 1.2rem;padding:0">
-                        ${same.map(x=>`<li style="margin:.2rem 0"><b>Q${x.i+1}.</b> ${x.title}<br>
-                          <span class="tag">공통 선택: ${x.type}</span>
-                          <span class="tag">${x.text}</span></li>`).join('')}
-                      </ol>`
-                    : `<p class="muted" style="margin:.4rem 0 0">매칭 없음</p>`
+                ${
+                  same.length
+                  ? `<ol style="margin:.4rem 0 0 1.2rem;padding:0">
+                      ${same.map(x=>`<li style="margin:.2rem 0"><b>Q${x.i+1}.</b> ${x.title}<br>
+                        <span class="tag">공통 선택: ${x.type}</span>
+                        <span class="tag">${x.text}</span></li>`).join('')}
+                    </ol>`
+                  : `<p class="muted" style="margin:.4rem 0 0">매칭 없음</p>`
                 }
               </div>
             </div>
@@ -387,7 +410,7 @@
       return;
     }
 
-    // In-Game
+    // 진행 중
     const q = QUESTIONS[curIndex];
     const picks = await answersFor(curIndex);
     const myPick = picks.find(p=>p.playerId===me.id)?.type || null;
@@ -425,7 +448,7 @@
     const opt = e.target.closest('.opt');
     if(!opt) return;
 
-    // UI 반영(즉시)
+    // UI 반영(즉시): a→b 전환도 즉시 색 반전
     appEl.querySelectorAll('.opt').forEach(b=>{
       b.classList.remove('selected');
       b.setAttribute('aria-pressed','false');
@@ -441,7 +464,7 @@
     }
   });
 
-  // boot
+  // 시작
   renderStart();
   </script>
 </body>
