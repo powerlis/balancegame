@@ -104,7 +104,6 @@
       border-radius:5px; overflow:hidden; margin-bottom:16px; }
     .bar{ height:100%; background: var(--main-color); transition: width .35s ease; }
 
-    /* 옵션 버튼 */
     .opt {
       position: relative;
       width:100%; padding:16px; margin-bottom:12px;
@@ -182,6 +181,15 @@
   const $ = (s,c=document)=>c.querySelector(s);
   const uid = ()=> 'P'+Math.random().toString(36).slice(2,9).toUpperCase();
   const code6 = ()=> Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(2,8);
+  function getJoinCode(){
+    try{
+      const url = new URL(location.href);
+      const q = url.searchParams.get('join');
+      if(q && /^[A-Z0-9]{4,8}$/.test(q)) return q.toUpperCase();
+      if(location.hash.startsWith('#join=')) return location.hash.slice(6).toUpperCase();
+    }catch(e){}
+    return null;
+  }
 
   let db = null;
   let me = { id:null, name:'', role:'player' };
@@ -220,58 +228,74 @@
   /* ========= Start Screen ========= */
   function renderStart(){
     clearTimer();
+    const joinCode = getJoinCode();
+
+    // 기본: 호스트 전용 / 참가자 링크: 참가자 전용
+    const hostOnly = !joinCode;
+
     appEl.innerHTML = `
       <div class="head">
         <span class="pill">임실고등학교 도서관</span>
         <h1>밸런스 독서 게임</h1>
-        <p class="lead">호스트는 방을 만들고, 참가자는 방 코드로 입장합니다.</p>
+        <p class="lead">
+          ${ hostOnly ? '호스트가 방을 만들고 링크를 공유하세요.' : '공유받은 링크로 참가하세요.'}
+        </p>
       </div>
       <div class="pad card">
         <div class="row">
+          ${ hostOnly ? `
           <div class="col">
             <label class="muted">호스트 이름</label>
             <input id="hostName" type="text" placeholder="예: 사회자/교사" />
             <button class="btn" id="mkroom">방 만들기</button>
           </div>
+          ` : `
           <div class="col">
             <label class="muted">방 코드</label>
-            <input id="code" type="text" placeholder="ABC123" />
+            <input id="code" type="text" placeholder="ABC123" value="${joinCode}" />
             <label class="muted">참가자 이름</label>
             <input id="name" type="text" placeholder="이름" />
             <button class="btn" id="join">참가자로 입장</button>
           </div>
+          `}
         </div>
       </div>
     `;
 
-    $('#mkroom').addEventListener('click', async ()=>{
-      const name = $('#hostName').value.trim() || 'Host';
-      const id = code6();
-      await db.collection('rooms').doc(id).set({
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        started:false,
-        currentIndex:-1
+    const mk = $('#mkroom');
+    if(mk){
+      mk.addEventListener('click', async ()=>{
+        const name = $('#hostName').value.trim() || 'Host';
+        const id = code6();
+        await db.collection('rooms').doc(id).set({
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          started:false,
+          currentIndex:-1
+        });
+        me = { id: uid(), name, role:'host' };
+        room.id = id;
+        await db.collection('rooms').doc(id).collection('players').doc(me.id).set({
+          name, role:'host', joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        listenRoom();
       });
-      me = { id: uid(), name, role:'host' };
-      room.id = id;
-      await db.collection('rooms').doc(id).collection('players').doc(me.id).set({
-        name, role:'host', joinedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      listenRoom();
-    });
+    }
 
-    $('#join').addEventListener('click', async ()=>{
-      const code = $('#code').value.trim().toUpperCase();
-      const name = $('#name').value.trim() || '참가자';
-      const snap = await db.collection('rooms').doc(code).get();
-      if(!snap.exists){ alert('존재하지 않는 방 코드입니다.'); return; }
-      me = { id: uid(), name, role:'player' };
-      room.id = code;
-      await db.collection('rooms').doc(code).collection('players').doc(me.id).set({
-        name, role:'player', joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+    const joinBtn = $('#join');
+    if(joinBtn){
+      joinBtn.addEventListener('click', async ()=>{
+        const code = $('#code').value.trim().toUpperCase();
+        const name = $('#name').value.trim() || '참가자';
+        const snap = await db.collection('rooms').doc(code).get();
+        if(!snap.exists){ alert('존재하지 않는 방 코드입니다.'); return; }
+        me = { id: uid(), name, role:'player' };
+        room.id = code;
+        await db.collection('rooms').doc(code).collection('players').doc(me.id).set({
+          name, role:'player', joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        listenRoom();
       });
-      listenRoom();
-    });
+    }
   }
 
   /* ========= Listeners ========= */
@@ -373,7 +397,6 @@
   }
 
   /* ========= Result Helpers (옵션 B) ========= */
-  // 참가자별 응답 개수 계산
   function buildAnsweredMap(ans){
     const m = {};
     for(const a of ans){
@@ -381,11 +404,8 @@
     }
     return m;
   }
-
-  // 두 참가자가 "둘 다 답한 문항 수(common)"과 "그 중 일치한 개수(same)" 계산
   function pairMatchesAndCommonCount(aId, bId, ans){
     const byKey = {};
-    // 키: `${playerId}_${qIndex}` 로 저장되어 있어 중복 없음
     for(const a of ans){
       byKey[`${a.playerId}_${a.qIndex}`] = a;
     }
@@ -404,11 +424,9 @@
     }
     return { same, common };
   }
-
-  // 공정한 분모(common) 기반 메시지
   function msgByCommon(same, common){
     if(common===0) return { t:'공통 응답 없음', d:'두 참가자가 함께 답한 문항이 없습니다.' };
-    const pct = same/common; // 0~1
+    const pct = same/common;
     if(pct <= 0.25) return { t:'책은 같이 읽지만... 마음은 평행선 💫', d:'취향은 다르지만 그래서 대화가 풍성해져요!' };
     if(pct <= 0.5)  return { t:'다르지만 묘하게 통하는 독서 친구 📖', d:'관점은 달라도 공감대가 꽤 있어요.' };
     if(pct <= 0.8)  return { t:'같이 힐링하는 찐독서메이트 🌿', d:'읽는 습관/취향이 많이 겹치네요.' };
@@ -422,6 +440,7 @@
     // 대기실
     if(!latestRoomData.started || curIndex<0){
       clearTimer();
+      const share = `${location.origin}${location.pathname}?join=${room.id||''}`;
       appEl.innerHTML = `
         <div class="head">
           <span class="pill">방 코드 ${room.id||'-'}</span>
@@ -430,10 +449,32 @@
         </div>
         <div class="pad card">
           ${latestPlayers.length ? latestPlayers.map(p=>`<span class="tag">${p.name}${p.role==='host'?' (호스트)':''}</span>`).join(' ') : '<span class="muted">아직 참가자 없음</span>'}
-          ${me.role==='host' ? '<button class="btn" id="start">게임 시작</button>' : ''}
+          ${me.role==='host' ? `
+            <div style="margin-top:14px; text-align:left">
+              <label class="muted">참가자 안내 링크</label>
+              <div style="display:flex; gap:8px; align-items:center; margin-top:6px">
+                <input id="shareLink" type="text" value="${share}" readonly
+                       style="flex:1; padding:10px; border:2px solid var(--border-color); border-radius:12px" />
+                <button class="btn" id="copyShare" style="width:auto; padding:10px 14px">복사</button>
+              </div>
+            </div>
+            <button class="btn" id="start" style="margin-top:14px">게임 시작</button>
+          ` : ''}
         </div>
       `;
-      if(me.role==='host') $('#start').addEventListener('click', startGame);
+      if(me.role==='host'){
+        $('#start').addEventListener('click', startGame);
+        $('#copyShare')?.addEventListener('click', async ()=>{
+          const url = $('#shareLink').value;
+          try{
+            await navigator.clipboard.writeText(url);
+            alert('링크가 복사되었습니다!');
+          }catch(e){
+            const el = $('#shareLink'); el.select(); document.execCommand('copy');
+            alert('링크가 복사되었습니다!');
+          }
+        });
+      }
       return;
     }
 
@@ -445,17 +486,13 @@
       const ans = allSnap.docs.map(d=>d.data());
       const QN = QUESTIONS.length;
 
-      // ① 참가자별 응답 개수
       const answeredByPlayer = buildAnsweredMap(ans);
-
-      // ② 헤더 이름 + 미완료 배지
       const headerName = (p)=>{
         const count = answeredByPlayer[p.id] || 0;
         const badge = count < QN ? `<span class="tag-danger">미완료 ${count}/${QN}</span>` : '';
         return `${p.name} ${badge}`;
       };
 
-      // ③ 매칭 결과 표 (분모=공통 응답 수)
       let html = `
         <div class="head"><span class="pill">결과</span><h1>매칭 결과</h1></div>
         <div class="pad card result-scroll">
@@ -480,7 +517,6 @@
       });
       html += `</tbody></table>`;
 
-      // ④ 페어 상세(공통 응답 기준 메시지 + 매칭 문항)
       for(let i=0;i<latestPlayers.length;i++){
         for(let j=i+1;j<latestPlayers.length;j++){
           const A = latestPlayers[i], B = latestPlayers[j];
@@ -567,7 +603,7 @@
     const opt = e.target.closest('.opt');
     if(!opt) return;
 
-    // UI 반영(즉시): a→b 전환도 즉시 색 반전
+    // UI 즉시 반영
     appEl.querySelectorAll('.opt').forEach(b=>{
       b.classList.remove('selected');
       b.setAttribute('aria-pressed','false');
