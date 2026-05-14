@@ -84,9 +84,32 @@
       color:#fff; font-size:1.1rem; font-weight:700;
       cursor:pointer; transition: all .2s ease;
       margin-top:10px;
+      text-align:center;
     }
     .btn:hover { background-color:var(--dark-color); border-color:var(--dark-color); transform: translateY(-2px); }
     .btn[disabled]{ opacity:.6; cursor:not-allowed; transform:none; }
+
+    .btn-sub {
+      background:#fff;
+      color:var(--main-color);
+      border-color:var(--main-color);
+    }
+    .btn-sub:hover {
+      background:var(--light-color);
+      color:var(--dark-color);
+      border-color:var(--dark-color);
+    }
+
+    .btn-danger {
+      background:#fff;
+      color:var(--red-text);
+      border-color:var(--red-strong);
+    }
+    .btn-danger:hover {
+      background:var(--red-bg);
+      color:var(--red-text);
+      border-color:var(--red-strong);
+    }
 
     .muted { color: var(--text-light); }
     .tag{
@@ -181,6 +204,12 @@
   const $ = (s,c=document)=>c.querySelector(s);
   const uid = ()=> 'P'+Math.random().toString(36).slice(2,9).toUpperCase();
   const code6 = ()=> Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(2,8);
+
+  const LS_ROOM = 'balance_host_room';
+  const LS_ID = 'balance_host_id';
+  const LS_NAME = 'balance_host_name';
+  const LS_ROLE = 'balance_host_role';
+
   function getJoinCode(){
     try{
       const url = new URL(location.href);
@@ -189,6 +218,76 @@
       if(location.hash.startsWith('#join=')) return location.hash.slice(6).toUpperCase();
     }catch(e){}
     return null;
+  }
+
+  function saveHostSession(){
+    if(me.role !== 'host' || !room.id) return;
+    localStorage.setItem(LS_ROOM, room.id);
+    localStorage.setItem(LS_ID, me.id);
+    localStorage.setItem(LS_NAME, me.name);
+    localStorage.setItem(LS_ROLE, me.role);
+  }
+
+  function clearSavedSession(){
+    localStorage.removeItem(LS_ROOM);
+    localStorage.removeItem(LS_ID);
+    localStorage.removeItem(LS_NAME);
+    localStorage.removeItem(LS_ROLE);
+  }
+
+  function resetGame(){
+    clearTimer();
+    clearSavedSession();
+    if(unsubRoom){ unsubRoom(); unsubRoom=null; }
+    if(unsubPlayers){ unsubPlayers(); unsubPlayers=null; }
+    if(unsubAnswers){ unsubAnswers(); unsubAnswers=null; }
+
+    me = { id:null, name:'', role:'player' };
+    room = { id:null };
+    latestRoomData = null;
+    latestPlayers = [];
+    curIndex = -1;
+
+    // join 파라미터 제거 후 처음 화면으로 이동
+    location.href = location.origin + location.pathname;
+  }
+
+  async function tryRestoreHostSession(){
+    const savedRoom = localStorage.getItem(LS_ROOM);
+    const savedId = localStorage.getItem(LS_ID);
+    const savedName = localStorage.getItem(LS_NAME);
+    const savedRole = localStorage.getItem(LS_ROLE);
+
+    if(!savedRoom || !savedId || savedRole !== 'host') return false;
+
+    try{
+      const snap = await db.collection('rooms').doc(savedRoom).get();
+      if(!snap.exists){
+        clearSavedSession();
+        return false;
+      }
+
+      me = {
+        id: savedId,
+        name: savedName || 'Host',
+        role: 'host'
+      };
+      room.id = savedRoom;
+
+      // 호스트 player 문서가 없어졌을 때를 대비해 다시 저장
+      await db.collection('rooms').doc(savedRoom).collection('players').doc(savedId).set({
+        name: me.name,
+        role:'host',
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
+
+      listenRoom();
+      return true;
+    }catch(e){
+      console.warn('호스트 세션 복구 실패:', e);
+      clearSavedSession();
+      return false;
+    }
   }
 
   let db = null;
@@ -203,75 +302,6 @@
 
   // 강제 진행 허용 시간(초)
   const FORCE_SECONDS = 20;
-
-  // 모바일에서 카카오톡 등으로 앱 전환 후 돌아왔을 때
-  // 방 만들기 화면으로 돌아가지 않도록 현재 접속 정보를 저장합니다.
-  const STORAGE_KEY = 'balance_reading_game_session_v1';
-
-  function saveSession(){
-    try{
-      if(!room.id || !me.id) return;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        roomId: room.id,
-        meId: me.id,
-        name: me.name,
-        role: me.role,
-        savedAt: Date.now()
-      }));
-    }catch(e){}
-  }
-
-  function loadSession(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return null;
-      const s = JSON.parse(raw);
-      if(!s.roomId || !s.meId || !s.role) return null;
-      return s;
-    }catch(e){
-      return null;
-    }
-  }
-
-  function clearSession(){
-    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
-  }
-
-  async function restoreSessionIfPossible(joinCode){
-    const saved = loadSession();
-    if(!saved) return false;
-
-    // 참가자 링크로 들어온 경우에는 같은 방일 때만 자동 복귀
-    if(joinCode && saved.roomId !== joinCode) return false;
-
-    try{
-      const roomSnap = await db.collection('rooms').doc(saved.roomId).get();
-      if(!roomSnap.exists){
-        clearSession();
-        return false;
-      }
-
-      const playerSnap = await db.collection('rooms').doc(saved.roomId)
-        .collection('players').doc(saved.meId).get();
-
-      if(!playerSnap.exists){
-        clearSession();
-        return false;
-      }
-
-      me = {
-        id: saved.meId,
-        name: saved.name || playerSnap.data().name || '참가자',
-        role: saved.role || playerSnap.data().role || 'player'
-      };
-      room.id = saved.roomId;
-      listenRoom();
-      return true;
-    }catch(e){
-      console.warn('세션 복구 실패:', e);
-      return false;
-    }
-  }
 
   const QUESTIONS = [
     {title:'책갈피가 없을 때?', a:'a. 책 모서리 접으면 간단하지', b:'b. 새 책 느낌 지켜! 절대 접지 않는다'},
@@ -295,13 +325,9 @@
   db = firebase.firestore();
 
   /* ========= Start Screen ========= */
-  async function renderStart(){
+  function renderStart(){
     clearTimer();
     const joinCode = getJoinCode();
-
-    // 저장된 방 정보가 있으면 새로고침/앱 전환 후에도 대기실 또는 진행 화면으로 복귀
-    const restored = await restoreSessionIfPossible(joinCode);
-    if(restored) return;
 
     // 기본: 호스트 전용 / 참가자 링크: 참가자 전용
     const hostOnly = !joinCode;
@@ -329,6 +355,7 @@
             <label class="muted">참가자 이름</label>
             <input id="name" type="text" placeholder="이름" />
             <button class="btn" id="join">참가자로 입장</button>
+            <button class="btn btn-sub" id="goHome" type="button">처음 화면으로</button>
           </div>
           `}
         </div>
@@ -350,7 +377,7 @@
         await db.collection('rooms').doc(id).collection('players').doc(me.id).set({
           name, role:'host', joinedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        saveSession();
+        saveHostSession();
         listenRoom();
       });
     }
@@ -367,19 +394,28 @@
         await db.collection('rooms').doc(code).collection('players').doc(me.id).set({
           name, role:'player', joinedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        saveSession();
         listenRoom();
       });
     }
+
+    $('#goHome')?.addEventListener('click', ()=>{
+      location.href = location.origin + location.pathname;
+    });
   }
 
   /* ========= Listeners ========= */
   function listenRoom(){
     if(unsubRoom)unsubRoom();
     unsubRoom = db.collection('rooms').doc(room.id).onSnapshot(doc=>{
-      if(!doc.exists){ clearSession(); alert('방이 종료되었습니다.'); renderStart(); return; }
+      if(!doc.exists){
+        alert('방이 종료되었습니다.');
+        clearSavedSession();
+        renderStart();
+        return;
+      }
       latestRoomData = doc.data();
       curIndex = latestRoomData.currentIndex ?? -1;
+      syncAnswerSubscription();
       renderGame();
     });
 
@@ -471,7 +507,7 @@
     return Math.floor((Date.now() - started.getTime())/1000);
   }
 
-  /* ========= Result Helpers (옵션 B) ========= */
+  /* ========= Result Helpers ========= */
   function buildAnsweredMap(ans){
     const m = {};
     for(const a of ans){
@@ -527,8 +563,8 @@
           ${me.role==='host' ? `
             <div style="margin-top:14px; text-align:left">
               <label class="muted" style="color: blue;">
-  참가자 안내 링크(아래 링크를 복사하여 짝궁에서 전달하고 시작하면 됩니다)
-</label>
+                참가자 안내 링크(아래 링크를 복사하여 짝궁에게 전달하고 시작하면 됩니다)
+              </label>
               <div style="display:flex; gap:8px; align-items:center; margin-top:6px">
                 <input id="shareLink" type="text" value="${share}" readonly
                        style="flex:1; padding:10px; border:2px solid var(--border-color); border-radius:12px" />
@@ -536,18 +572,14 @@
               </div>
             </div>
             <button class="btn" id="start" style="margin-top:14px">게임 시작</button>
-            <button class="btn" id="newRoom" style="margin-top:10px;background:#fff;color:var(--main-color)">새 방 만들기 화면으로 가기</button>
+            <button class="btn btn-danger" id="newRoom" type="button">새 방 만들기</button>
           ` : `
-            <button class="btn" id="leaveRoom" style="margin-top:14px;background:#fff;color:var(--main-color)">처음 화면으로 가기</button>
+            <button class="btn btn-sub" id="leavePlayer" type="button">처음 화면으로</button>
           `}
         </div>
       `;
       if(me.role==='host'){
         $('#start').addEventListener('click', startGame);
-        $('#newRoom')?.addEventListener('click', ()=>{
-          clearSession();
-          location.href = location.origin + location.pathname;
-        });
         $('#copyShare')?.addEventListener('click', async ()=>{
           const url = $('#shareLink').value;
           try{
@@ -558,9 +590,13 @@
             alert('링크가 복사되었습니다!');
           }
         });
+        $('#newRoom')?.addEventListener('click', ()=>{
+          if(confirm('현재 방에서 나가고 새 방을 만드시겠습니까?')){
+            resetGame();
+          }
+        });
       }else{
-        $('#leaveRoom')?.addEventListener('click', ()=>{
-          clearSession();
+        $('#leavePlayer')?.addEventListener('click', ()=>{
           location.href = location.origin + location.pathname;
         });
       }
@@ -634,8 +670,19 @@
         }
       }
 
-      html += `<button class="btn" style="margin-top:14px" onclick="clearSession(); location.href = location.origin + location.pathname;">다시 하기(새 방)</button></div>`;
+      html += `
+          <button class="btn" style="margin-top:14px" id="newRoomFromResult" type="button">새 방 만들기</button>
+          <button class="btn btn-sub" style="margin-top:10px" onclick="location.reload()">현재 결과 다시 보기</button>
+        </div>
+      `;
       appEl.innerHTML = html;
+
+      $('#newRoomFromResult')?.addEventListener('click', ()=>{
+        if(confirm('저장된 방 정보를 지우고 새 방 만들기 화면으로 이동할까요?')){
+          resetGame();
+        }
+      });
+
       return;
     }
 
@@ -672,7 +719,8 @@
           ? `<button class="btn" id="nextBtn" data-all-answered="${allAnswered}"
                ${!(allAnswered || canForce) ? 'disabled' : ''} style="margin-top:12px">
                ${canForce ? '다음(호스트 · 20초 경과)' : '다음(호스트)'}
-             </button>`
+             </button>
+             <button class="btn btn-danger" id="newRoomDuringGame" type="button">새 방 만들기</button>`
           : ''
         }
       </div>
@@ -681,6 +729,12 @@
     if(me.role==='host'){
       const nextBtn = $('#nextBtn');
       if(nextBtn) nextBtn.addEventListener('click', ()=> nextQuestionSafe(curIndex));
+
+      $('#newRoomDuringGame')?.addEventListener('click', ()=>{
+        if(confirm('진행 중인 방에서 나가고 새 방을 만드시겠습니까?')){
+          resetGame();
+        }
+      });
     }
 
     // 타이머 시작/갱신
@@ -708,8 +762,24 @@
     }
   });
 
-  // 시작
-  renderStart();
+  /* ========= Boot ========= */
+  async function boot(){
+    const joinCode = getJoinCode();
+
+    // 참가자 링크로 들어온 경우에는 호스트 자동복구를 하지 않음
+    if(joinCode){
+      renderStart();
+      return;
+    }
+
+    // 호스트 저장 정보가 있으면 대기실/진행 화면으로 자동 복귀
+    const restored = await tryRestoreHostSession();
+    if(!restored){
+      renderStart();
+    }
+  }
+
+  boot();
   </script>
 </body>
 </html>
